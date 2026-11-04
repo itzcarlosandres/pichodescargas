@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Application;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
@@ -48,6 +49,13 @@ class SetupAdminCommand extends Command
             ]);
             $this->info("Nuevo usuario administrador creado: {$email}");
         }
+
+        Setting::firstOrCreate(['key' => 'site_name'], ['value' => 'Picho', 'group' => 'general']);
+        Setting::firstOrCreate(['key' => 'site_name_highlight'], ['value' => 'Descargas', 'group' => 'general']);
+        Setting::firstOrCreate(['key' => 'seo_meta_title'], ['value' => 'PichoDescargas - Descarga Aplicaciones, Juegos y Software', 'group' => 'seo']);
+        Setting::firstOrCreate(['key' => 'seo_meta_description'], ['value' => 'Descubre y descarga las mejores aplicaciones y juegos para Windows, Mac, Android y más. Rápido, seguro y verificado.', 'group' => 'seo']);
+        Setting::firstOrCreate(['key' => 'seo_keywords'], ['value' => 'pichodescargas, descargas, aplicaciones pc, programas windows, juegos pc, mac apps, android apk, utilidades', 'group' => 'seo']);
+        Setting::firstOrCreate(['key' => 'contact_email'], ['value' => $email, 'group' => 'general']);
 
         if ($this->option('clear-posts')) {
             $count = Application::count();

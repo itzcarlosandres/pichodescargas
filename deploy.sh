@@ -22,6 +22,7 @@ fi
 
 # 4. Obtener los últimos cambios desde la rama main de GitHub
 echo "📦 Descargando últimos cambios desde GitHub..."
+git checkout -- deploy.sh 2>/dev/null || true
 git pull origin main
 
 # 5. Asegurar nuevamente permisos tras el pull
@@ -46,6 +47,8 @@ fi
 # 8. Ejecutar migraciones de base de datos
 echo "🗄️ Ejecutando migraciones de base de datos..."
 php artisan migrate --force
+php artisan db:seed --class=CategorySeeder --force || true
+php artisan admin:setup || true
 
 # 9. Recompilar caché optimizada de Laravel
 echo "🧹 Limpiando y optimizando cachés de Laravel..."

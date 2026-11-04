@@ -47,10 +47,8 @@ class CategorySeeder extends Seeder
             ],
         ];
 
-        Category::query()->delete();
-
         foreach ($categories as $cat) {
-            Category::create($cat);
+            Category::firstOrCreate(['slug' => $cat['slug']], $cat);
         }
     }
 }
