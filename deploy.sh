@@ -6,22 +6,48 @@ set -e
 
 echo "🚀 Iniciando despliegue de PichoDescargas..."
 
-# 1. Modo de mantenimiento temporal durante la actualización
-php artisan down --render="errors::503" --retry=60 || true
+# 1. Permitir ejecución de Composer como root en aaPanel sin bloquear plugins
+export COMPOSER_ALLOW_SUPERUSER=1
 
-# 2. Obtener los últimos cambios desde la rama main de GitHub
+# 2. Asegurar que los directorios críticos existan y tengan permisos de escritura
+echo "📁 Preparando directorios y permisos de almacenamiento y caché..."
+mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing storage/logs bootstrap/cache
+chmod -R 777 storage bootstrap/cache
+chown -R www:www storage bootstrap/cache 2>/dev/null || true
+
+# 3. Modo de mantenimiento temporal (solo si vendor ya está instalado)
+if [ -f "vendor/autoload.php" ]; then
+    php artisan down --render="errors::503" --retry=60 || true
+fi
+
+# 4. Obtener los últimos cambios desde la rama main de GitHub
 echo "📦 Descargando últimos cambios desde GitHub..."
 git pull origin main
 
-# 3. Instalar dependencias de PHP optimizadas para producción
+# 5. Asegurar nuevamente permisos tras el pull
+chmod -R 777 storage bootstrap/cache
+chown -R www:www storage bootstrap/cache 2>/dev/null || true
+
+# 6. Instalar dependencias de PHP optimizadas para producción
 echo "⚡ Instalando dependencias de Composer..."
 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
-# 4. Ejecutar migraciones de base de datos
+# 7. Asegurar existencia del archivo .env y su APP_KEY
+if [ ! -f ".env" ]; then
+    echo "⚠️ Archivo .env no encontrado. Creando a partir de .env.production.example..."
+    cp .env.production.example .env
+fi
+
+if ! grep -q "^APP_KEY=base64:" .env; then
+    echo "🔑 Generando APP_KEY en .env..."
+    php artisan key:generate --force
+fi
+
+# 8. Ejecutar migraciones de base de datos
 echo "🗄️ Ejecutando migraciones de base de datos..."
 php artisan migrate --force
 
-# 5. Recompilar caché optimizada de Laravel
+# 9. Recompilar caché optimizada de Laravel
 echo "🧹 Limpiando y optimizando cachés de Laravel..."
 php artisan optimize:clear
 php artisan config:cache
@@ -29,19 +55,19 @@ php artisan route:cache
 php artisan view:cache
 php artisan event:cache
 
-# 6. Asegurar enlace simbólico de almacenamiento público
+# 10. Asegurar enlace simbólico de almacenamiento público
 php artisan storage:link || true
 
-# 7. Ajustar permisos para el usuario del servidor web de aaPanel (www:www)
-echo "🔒 Ajustando permisos de directorios..."
-chown -R www:www storage bootstrap/cache || true
-chmod -R 775 storage bootstrap/cache || true
+# 11. Ajustar permisos finales para el usuario del servidor web de aaPanel (www:www)
+echo "🔒 Ajustando permisos finales..."
+chown -R www:www storage bootstrap/cache 2>/dev/null || true
+chmod -R 775 storage bootstrap/cache
 
-# 8. Reiniciar trabajadores de colas (Supervisor)
+# 12. Reiniciar trabajadores de colas (Supervisor)
 echo "🔄 Reiniciando workers de colas..."
 php artisan queue:restart || true
 
-# 9. Desactivar modo de mantenimiento
+# 13. Desactivar modo de mantenimiento
 php artisan up
 
 echo "✅ ¡Despliegue completado con éxito en aaPanel!"
