@@ -1,0 +1,20 @@
+==============================================================================
+Configuración del Cron en aaPanel para PichoDescargas
+==============================================================================
+
+En el panel de aaPanel, dirígete a:
+Panel aaPanel -> "Cron" en el menú izquierdo -> "Add Cron Job"
+
+Configura los campos de la siguiente manera:
+1. Type of Task: Shell Script
+2. Name of Task: PichoDescargas Scheduler
+3. Period: Every Minute (* * * * *)
+4. Script content:
+cd /www/wwwroot/tudominio.com && php artisan schedule:run >> /dev/null 2>&1
+
+Con esta única línea de cron, Laravel ejecutará automáticamente:
+- Sincronización inteligente de novedades del catálogo (Scraper)
+- Publicación gradual (Drip-feed)
+- Despacho de aportes hacia Telegram
+- Monitoreo y auto-reparación de enlaces caídos
+- Generación diaria del sitemap XML
