@@ -1,0 +1,17 @@
+{
+  "name": "PichoDescargas - Programas, Juegos y Apps",
+  "short_name": "PichoDescargas",
+  "description": "Descarga directa de programas para Windows, Mac, Android y juegos de PC.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0B0C",
+  "theme_color": "#0071E3",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,2393 @@
+@extends('layouts.admin')
+
+@section('title', 'Configuración de la Web')
+@section('page-title', 'Configuración General')
+
+@section('content')
+<div class="max-w-6xl mx-auto space-y-6" x-data="{
+    tab: '{{ request('tab', 'logo') }}',
+    logoType: '{{ old('logo_type', $settings['logo_type'] ?? 'text_icon') }}',
+    logoSize: {{ old('logo_size', (int) ($settings['logo_size'] ?? 24)) }},
+    siteName: '{{ old('site_name', $settings['site_name'] ?? 'Picho') }}',
+    siteHighlight: '{{ old('site_name_highlight', $settings['site_name_highlight'] ?? 'Descargas') }}',
+    logoIcon: '{{ old('logo_icon', $settings['logo_icon'] ?? 'download') }}',
+    seoTitle: '{{ old('seo_meta_title', $settings['seo_meta_title'] ?? '') }}',
+    seoDesc: '{{ old('seo_meta_description', $settings['seo_meta_description'] ?? '') }}',
+    aiProvider: '{{ old('ai_provider', $settings['ai_provider'] ?? 'deepseek') }}',
+    deepseekApiKey: '{{ old('deepseek_api_key', $settings['deepseek_api_key'] ?? '') }}',
+    deepseekModel: '{{ old('deepseek_model', $settings['deepseek_model'] ?? 'deepseek-chat') }}',
+    showDeepseekApiKey: false,
+    testingDeepseek: false,
+    testDeepseekResult: null,
+
+    geminiApiKey: '{{ old('gemini_api_key', $settings['gemini_api_key'] ?? '') }}',
+    geminiModel: '{{ old('gemini_model', $settings['gemini_model'] ?? 'gemini-2.5-flash') }}',
+    showApiKey: false,
+    testingGemini: false,
+    testGeminiResult: null,
+
+    // Cloudflare R2 Storage State
+    r2AccountId: '{{ old('r2_account_id', $settings['r2_account_id'] ?? env('CLOUDFLARE_R2_ACCOUNT_ID', '')) }}',
+    r2AccessKeyId: '{{ old('r2_access_key_id', $settings['r2_access_key_id'] ?? env('CLOUDFLARE_R2_ACCESS_KEY_ID', env('AWS_ACCESS_KEY_ID', ''))) }}',
+    r2SecretAccessKey: '{{ old('r2_secret_access_key', $settings['r2_secret_access_key'] ?? env('CLOUDFLARE_R2_SECRET_ACCESS_KEY', env('AWS_SECRET_ACCESS_KEY', ''))) }}',
+    r2Bucket: '{{ old('r2_bucket', $settings['r2_bucket'] ?? env('CLOUDFLARE_R2_BUCKET', env('AWS_BUCKET', ''))) }}',
+    r2Url: '{{ old('r2_url', $settings['r2_url'] ?? env('CLOUDFLARE_R2_URL', '')) }}',
+    torrentDisk: '{{ old('torrentmac_storage_disk', $settings['torrentmac_storage_disk'] ?? 'local') }}',
+    showR2Secret: false,
+    testingR2: false,
+    testR2Result: null,
+
+    // Real-Time Notification & Webhook State
+    telegramEnabled: {{ old('telegram_enabled', (bool) ($settings['telegram_enabled'] ?? false)) ? 'true' : 'false' }},
+    telegramBotToken: '{{ old('telegram_bot_token', $settings['telegram_bot_token'] ?? '') }}',
+    telegramChannelId: '{{ old('telegram_channel_id', $settings['telegram_channel_id'] ?? '') }}',
+    telegramChannelUrl: '{{ old('telegram_channel_url', $settings['telegram_channel_url'] ?? 'https://t.me/pichodescargas') }}',
+    telegramButtonTooltip: '{{ addslashes(old('telegram_button_tooltip', $settings['telegram_button_tooltip'] ?? '¿Problemas con la descarga o buscas otra app? Únete a nuestro Telegram')) }}',
+    telegramAutoPilot: {{ old('telegram_auto_pilot', (bool) ($settings['telegram_auto_pilot'] ?? false)) ? 'true' : 'false' }},
+    telegramDailyLimit: {{ (int) old('telegram_daily_limit', $settings['telegram_daily_limit'] ?? 20) }},
+    telegramFloatingButtonEnabled: {{ old('telegram_floating_button_enabled', (bool) ($settings['telegram_floating_button_enabled'] ?? true)) ? 'true' : 'false' }},
+    telegramStats: {
+        pending_count: {{ $telegramStats['pending_count'] ?? 0 }},
+        sent_today: {{ $telegramStats['sent_today'] ?? 0 }},
+        daily_limit: {{ $telegramStats['daily_limit'] ?? 20 }},
+        total_sent: {{ $telegramStats['total_sent'] ?? 0 }},
+        auto_pilot: {{ ($telegramStats['auto_pilot'] ?? false) ? 'true' : 'false' }}
+    },
+    dispatchingTelegram: false,
+    dispatchTelegramResult: null,
+    togglingTelegramAutoPilot: false,
+    discordEnabled: {{ old('discord_enabled', (bool) ($settings['discord_enabled'] ?? false)) ? 'true' : 'false' }},
+    discordWebhookUrl: '{{ old('discord_webhook_url', $settings['discord_webhook_url'] ?? '') }}',
+    notifyNewApp: {{ old('notify_on_new_app', (bool) ($settings['notify_on_new_app'] ?? true)) ? 'true' : 'false' }},
+    notifyUpdate: {{ old('notify_on_update', (bool) ($settings['notify_on_update'] ?? true)) ? 'true' : 'false' }},
+    notifyBrokenLink: {{ old('notify_on_broken_link', (bool) ($settings['notify_on_broken_link'] ?? true)) ? 'true' : 'false' }},
+    showTelegramToken: false,
+    testingTelegram: false,
+    testTelegramResult: null,
+    testingDiscord: false,
+    testDiscordResult: null,
+
+    // VIP Download Button State
+    vipEnabled: {{ old('vip_download_enabled', (bool) ($settings['vip_download_enabled'] ?? false)) ? 'true' : 'false' }},
+    vipUrl: '{{ old('vip_download_url', $settings['vip_download_url'] ?? '') }}',
+    vipText: '{{ old('vip_download_text', $settings['vip_download_text'] ?? 'Download Speed VIP') }}',
+    vipSubtext: '{{ old('vip_download_subtext', $settings['vip_download_subtext'] ?? 'Direct High-Speed Server • Max Priority • 0s Wait') }}',
+    vipBadge: '{{ old('vip_download_badge', $settings['vip_download_badge'] ?? 'ULTRA FAST') }}',
+    vipOpenNewTab: {{ old('vip_download_open_new_tab', (bool) ($settings['vip_download_open_new_tab'] ?? true)) ? 'true' : 'false' }},
+
+    async testTelegramConnection() {
+        if (!this.telegramBotToken || !this.telegramChannelId) {
+            this.testTelegramResult = { success: false, message: 'Ingresa el Bot Token y el Chat ID de Telegram antes de probar.' };
+            return;
+        }
+        this.testingTelegram = true;
+        this.testTelegramResult = null;
+        try {
+            const res = await fetch('{{ route('admin.settings.test-telegram') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    bot_token: this.telegramBotToken,
+                    channel_id: this.telegramChannelId
+                })
+            });
+            this.testTelegramResult = await res.json();
+        } catch (e) {
+            this.testTelegramResult = { success: false, message: 'Error de red: ' + e.message };
+        } finally {
+            this.testingTelegram = false;
+        }
+    },
+
+    async dispatchTelegramOneNow() {
+        this.dispatchingTelegram = true;
+        this.dispatchTelegramResult = null;
+        try {
+            const res = await fetch('{{ route('admin.settings.telegram.dispatch-one') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+            const data = await res.json();
+            this.dispatchTelegramResult = data;
+            if (data.stats) {
+                this.telegramStats = data.stats;
+            }
+        } catch (e) {
+            this.dispatchTelegramResult = { success: false, message: 'Error de red: ' + e.message };
+        } finally {
+            this.dispatchingTelegram = false;
+        }
+    },
+
+    async toggleTelegramAutoPilotSwitch() {
+        this.togglingTelegramAutoPilot = true;
+        try {
+            const res = await fetch('{{ route('admin.settings.telegram.toggle-auto-pilot') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ auto_pilot: this.telegramAutoPilot })
+            });
+            const data = await res.json();
+            if (data.stats) {
+                this.telegramStats = data.stats;
+                this.telegramAutoPilot = data.stats.auto_pilot;
+            }
+        } catch (e) {
+            console.error('Error toggling Telegram auto pilot:', e);
+        } finally {
+            this.togglingTelegramAutoPilot = false;
+        }
+    },
+
+    insertTelegramTag(tag) {
+        const textarea = document.getElementById('telegram_template_textarea');
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        textarea.value = text.substring(0, start) + tag + text.substring(end);
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+    },
+
+    async testDiscordConnection() {
+        if (!this.discordWebhookUrl) {
+            this.testDiscordResult = { success: false, message: 'Ingresa la URL del Webhook de Discord antes de probar.' };
+            return;
+        }
+        this.testingDiscord = true;
+        this.testDiscordResult = null;
+        try {
+            const res = await fetch('{{ route('admin.settings.test-discord') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    webhook_url: this.discordWebhookUrl
+                })
+            });
+            this.testDiscordResult = await res.json();
+        } catch (e) {
+            this.testDiscordResult = { success: false, message: 'Error de red: ' + e.message };
+        } finally {
+            this.testingDiscord = false;
+        }
+    },
+
+    async testDeepseekConnection() {
+        if (!this.deepseekApiKey) {
+            this.testDeepseekResult = { success: false, message: 'Introduce una API Key de DeepSeek antes de probar la conexión.' };
+            return;
+        }
+        this.testingDeepseek = true;
+        this.testDeepseekResult = null;
+        try {
+            const res = await fetch('{{ route('admin.settings.test-deepseek') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    api_key: this.deepseekApiKey,
+                    model: this.deepseekModel
+                })
+            });
+            const data = await res.json();
+            this.testDeepseekResult = data;
+        } catch (e) {
+            this.testDeepseekResult = { success: false, message: 'Error de red al conectar con DeepSeek: ' + e.message };
+        } finally {
+            this.testingDeepseek = false;
+        }
+    },
+
+    async testGeminiConnection() {
+        if (!this.geminiApiKey) {
+            this.testGeminiResult = { success: false, message: 'Introduce una API Key antes de probar la conexión.' };
+            return;
+        }
+        this.testingGemini = true;
+        this.testGeminiResult = null;
+        try {
+            const res = await fetch('{{ route('admin.settings.test-gemini') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    api_key: this.geminiApiKey,
+                    model: this.geminiModel
+                })
+            });
+            const data = await res.json();
+            this.testGeminiResult = data;
+        } catch (e) {
+            this.testGeminiResult = { success: false, message: 'Error de red al conectar: ' + e.message };
+        } finally {
+            this.testingGemini = false;
+        }
+    },
+
+    async testR2Connection() {
+        if (!this.r2AccountId || !this.r2AccessKeyId || !this.r2SecretAccessKey || !this.r2Bucket) {
+            this.testR2Result = { success: false, message: 'Completa Account ID, Access Key ID, Secret Access Key y Bucket antes de probar la conexión.' };
+            return;
+        }
+        this.testingR2 = true;
+        this.testR2Result = null;
+        try {
+            const res = await fetch('{{ route('admin.settings.test-r2') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    account_id: this.r2AccountId,
+                    access_key_id: this.r2AccessKeyId,
+                    secret_access_key: this.r2SecretAccessKey,
+                    bucket: this.r2Bucket,
+                    url: this.r2Url
+                })
+            });
+            const data = await res.json();
+            this.testR2Result = data;
+        } catch (e) {
+            this.testR2Result = { success: false, message: 'Error de red al conectar con Cloudflare R2: ' + e.message };
+        } finally {
+            this.testingR2 = false;
+        }
+    },
+
+    // Cloudflare R2 State & Migration Center Methods
+    r2Enabled: {{ old('r2_enabled', (bool) ($settings['r2_enabled'] ?? (($settings['torrentmac_storage_disk'] ?? 'local') === 'r2'))) ? 'true' : 'false' }},
+    r2Stats: {
+        total_torrents: 0,
+        in_r2: 0,
+        in_local: 0,
+        pending_external: 0,
+        fallback_magnet: 0,
+        loading: false
+    },
+    togglingR2: false,
+    isMigratingR2: false,
+    migrationMode: 'pending_only',
+    migrationProgress: 0,
+    migrationTotalToProcess: 0,
+    migrationProcessedCount: 0,
+    migrationRemaining: 0,
+    migrationLogs: [],
+    migrationCancelled: false,
+
+    async fetchR2Stats() {
+        this.r2Stats.loading = true;
+        try {
+            const res = await fetch('{{ route('admin.settings.r2.stats') }}');
+            const data = await res.json();
+            if (data.success) {
+                this.r2Stats.total_torrents = data.total_torrents;
+                this.r2Stats.in_r2 = data.in_r2;
+                this.r2Stats.in_local = data.in_local;
+                this.r2Stats.pending_external = data.pending_external;
+                this.r2Stats.fallback_magnet = data.fallback_magnet;
+                this.r2Enabled = data.r2_enabled;
+                this.torrentDisk = data.current_disk;
+            }
+        } catch (e) {
+            console.error('Error fetching R2 stats:', e);
+        } finally {
+            this.r2Stats.loading = false;
+        }
+    },
+
+    async toggleR2Master(enable) {
+        this.togglingR2 = true;
+        try {
+            const res = await fetch('{{ route('admin.settings.r2.toggle') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ enabled: enable })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.r2Enabled = data.r2_enabled;
+                this.torrentDisk = data.current_disk;
+                await this.fetchR2Stats();
+            }
+        } catch (e) {
+            alert('Error al cambiar el estado de Cloudflare R2: ' + e.message);
+        } finally {
+            this.togglingR2 = false;
+        }
+    },
+
+    async startR2Migration(mode) {
+        if (!this.r2AccountId || !this.r2AccessKeyId || !this.r2SecretAccessKey || !this.r2Bucket) {
+            alert('Completa y prueba tus credenciales de Cloudflare R2 antes de iniciar la migración.');
+            return;
+        }
+
+        const confirmMsg = mode === 'all'
+            ? '¿Deseas migrar TODOS los torrents al bucket de Cloudflare R2? Los archivos locales y externos se renombrarán con la marca PichoDescargas.'
+            : '¿Deseas migrar únicamente los torrents externos o pendientes de localizar a Cloudflare R2?';
+
+        if (!confirm(confirmMsg)) return;
+
+        this.isMigratingR2 = true;
+        this.migrationCancelled = false;
+        this.migrationMode = mode;
+        this.migrationLogs = [];
+        this.migrationProcessedCount = 0;
+        this.migrationProgress = 0;
+
+        // Auto-enable R2 if not enabled
+        if (!this.r2Enabled) {
+            await this.toggleR2Master(true);
+        }
+
+        await this.fetchR2Stats();
+        this.migrationTotalToProcess = mode === 'all' 
+            ? (this.r2Stats.total_torrents - this.r2Stats.in_r2)
+            : this.r2Stats.pending_external;
+
+        if (this.migrationTotalToProcess <= 0) {
+            this.migrationTotalToProcess = this.r2Stats.total_torrents || 1;
+        }
+
+        this.runR2MigrationBatch();
+    },
+
+    async runR2MigrationBatch() {
+        if (this.migrationCancelled || !this.isMigratingR2) return;
+
+        try {
+            const res = await fetch('{{ route('admin.settings.r2.migrate-batch') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    mode: this.migrationMode,
+                    limit: 10
+                })
+            });
+
+            const data = await res.json();
+
+            if (!data.success) {
+                alert('Error durante la migración: ' + (data.message || 'Error desconocido'));
+                this.isMigratingR2 = false;
+                return;
+            }
+
+            if (data.processed && data.processed.length > 0) {
+                for (const item of data.processed) {
+                    this.migrationLogs.unshift(item);
+                    if (this.migrationLogs.length > 50) this.migrationLogs.pop();
+                    this.migrationProcessedCount++;
+                }
+
+                this.migrationRemaining = data.remaining;
+                const total = this.migrationProcessedCount + data.remaining;
+                this.migrationProgress = total > 0 ? Math.min(100, Math.round((this.migrationProcessedCount / total) * 100)) : 100;
+            }
+
+            if (data.done || data.remaining === 0 || (data.processed && data.processed.length === 0)) {
+                this.isMigratingR2 = false;
+                this.migrationProgress = 100;
+                await this.fetchR2Stats();
+                return;
+            }
+
+            // Continue next batch
+            setTimeout(() => this.runR2MigrationBatch(), 400);
+        } catch (e) {
+            console.error('Error in batch migration:', e);
+            this.isMigratingR2 = false;
+            alert('Se interrumpió la conexión del lote: ' + e.message);
+        }
+    },
+
+    cancelR2Migration() {
+        this.migrationCancelled = true;
+        this.isMigratingR2 = false;
+    }
+}">
+    <!-- Header with Traffic Lights & Action -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#14110E] border border-[#2B241C] p-5 rounded-2xl shadow-xl">
+        <div class="flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shadow-inner">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-tight">Configuración del Portal</h1>
+                <p class="text-xs text-[#8C847A]">Personaliza la identidad visual, logo, SEO, metadatos, IA Gemini y descripciones públicas.</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button type="submit" form="settings-form"
+                    class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-[#EA580C] hover:from-primary-hover hover:to-[#F97316] text-white text-xs font-bold shadow-lg shadow-primary/25 transition-all flex items-center gap-2 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Guardar Cambios</span>
+            </button>
+        </div>
+    </div>
+
+    @if(session('success'))
+        <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2.5 shadow-lg">
+            <svg class="w-5 h-5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>{{ session('success') }}</span>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="p-4 rounded-2xl bg-danger/10 border border-danger/30 text-danger text-xs font-medium space-y-2 shadow-lg">
+            <div class="flex items-center gap-2 font-bold text-sm">
+                <svg class="w-5 h-5 text-danger flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <span>No se pudieron guardar los cambios:</span>
+            </div>
+            <ul class="list-disc list-inside space-y-1 pl-6">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <!-- Navigation Pills / Tabs (Estilo Deslizado / Slideable Pills) -->
+    <div class="relative w-full">
+        <div class="flex items-center gap-1.5 p-1.5 bg-[#14110E]/95 backdrop-blur-xl border border-[#262019] rounded-2xl overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] shadow-inner shadow-black/40">
+            <button type="button" @click="tab = 'logo'"
+                    :class="tab === 'logo' ? 'bg-[#221C16] text-white border border-primary/40 shadow-sm font-bold ring-1 ring-primary/20' : 'text-[#8C847A] hover:text-[#E0D8CE] hover:bg-[#1A1510] border border-transparent'"
+                    class="group flex-1 min-w-max py-2.5 px-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 transition-colors" :class="tab === 'logo' ? 'text-primary' : 'text-[#8C847A] group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span>Identidad & Logo</span>
+            </button>
+
+            <button type="button" @click="tab = 'seo'"
+                    :class="tab === 'seo' ? 'bg-[#221C16] text-white border border-sky-500/40 shadow-sm font-bold ring-1 ring-sky-500/20' : 'text-[#8C847A] hover:text-[#E0D8CE] hover:bg-[#1A1510] border border-transparent'"
+                    class="group flex-1 min-w-max py-2.5 px-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 transition-colors" :class="tab === 'seo' ? 'text-sky-400' : 'text-[#8C847A] group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <span>SEO & Metadatos</span>
+            </button>
+
+            <button type="button" @click="tab = 'vip'"
+                    :class="tab === 'vip' ? 'bg-[#221C16] text-white border border-amber-500/40 shadow-sm font-bold ring-1 ring-amber-500/20' : 'text-[#8C847A] hover:text-[#E0D8CE] hover:bg-[#1A1510] border border-transparent'"
+                    class="group flex-1 min-w-max py-2.5 px-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 transition-colors" :class="tab === 'vip' ? 'text-amber-400' : 'text-[#8C847A] group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <span>Botón VIP</span>
+            </button>
+
+            <button type="button" @click="tab = 'scripts'"
+                    :class="tab === 'scripts' ? 'bg-[#221C16] text-white border border-emerald-500/40 shadow-sm font-bold ring-1 ring-emerald-500/20' : 'text-[#8C847A] hover:text-[#E0D8CE] hover:bg-[#1A1510] border border-transparent'"
+                    class="group flex-1 min-w-max py-2.5 px-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 transition-colors" :class="tab === 'scripts' ? 'text-emerald-400' : 'text-[#8C847A] group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                </svg>
+                <span>Scripts & Analytics</span>
+            </button>
+
+            <button type="button" @click="tab = 'general'"
+                    :class="tab === 'general' ? 'bg-[#221C16] text-white border border-purple-500/40 shadow-sm font-bold ring-1 ring-purple-500/20' : 'text-[#8C847A] hover:text-[#E0D8CE] hover:bg-[#1A1510] border border-transparent'"
+                    class="group flex-1 min-w-max py-2.5 px-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 transition-colors" :class="tab === 'general' ? 'text-purple-400' : 'text-[#8C847A] group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>Información & Textos</span>
+            </button>
+
+            <button type="button" @click="tab = 'gemini'"
+                    :class="tab === 'gemini' ? 'bg-[#221C16] text-white border border-[#38BDF8]/40 shadow-sm font-bold ring-1 ring-[#38BDF8]/20' : 'text-[#8C847A] hover:text-[#E0D8CE] hover:bg-[#1A1510] border border-transparent'"
+                    class="group flex-1 min-w-max py-2.5 px-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 transition-colors" :class="tab === 'gemini' ? 'text-[#38BDF8]' : 'text-[#8C847A] group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <span>Generador IA (DeepSeek & Gemini)</span>
+            </button>
+
+            <button type="button" @click="tab = 'storage'"
+                    :class="tab === 'storage' ? 'bg-[#221C16] text-white border border-[#F38020]/50 shadow-sm font-bold ring-1 ring-[#F38020]/25' : 'text-[#8C847A] hover:text-[#E0D8CE] hover:bg-[#1A1510] border border-transparent'"
+                    class="group flex-1 min-w-max py-2.5 px-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 transition-colors" :class="tab === 'storage' ? 'text-[#F38020]' : 'text-[#8C847A] group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/>
+                </svg>
+                <span>Cloudflare R2</span>
+            </button>
+
+            <button type="button" @click="tab = 'notifications'"
+                    :class="tab === 'notifications' ? 'bg-[#221C16] text-white border border-indigo-500/40 shadow-sm font-bold ring-1 ring-indigo-500/20' : 'text-[#8C847A] hover:text-[#E0D8CE] hover:bg-[#1A1510] border border-transparent'"
+                    class="group flex-1 min-w-max py-2.5 px-3.5 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 transition-colors" :class="tab === 'notifications' ? 'text-indigo-400' : 'text-[#8C847A] group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                <span>Notificaciones &amp; Alertas</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Settings Form -->
+    <form id="settings-form" action="{{ route('admin.settings.update') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        @csrf
+        <input type="hidden" name="active_tab" :value="tab">
+
+        <!-- TAB 1: IDENTIDAD & LOGO -->
+        @php
+            $availableIcons = [
+                // Classic macOS & Apple
+                'finder' => ['label' => 'Finder macOS', 'badge' => 'Classic'],
+                'apple' => ['label' => 'Apple ', 'badge' => 'Brand'],
+                'command' => ['label' => 'Command ⌘', 'badge' => 'Shortcut'],
+                'terminal' => ['label' => 'Terminal >_', 'badge' => 'Dev'],
+                // Hardware & Mac Apps (Lucide)
+                'cpu' => ['label' => 'Silicon CPU', 'badge' => 'Lucide'],
+                'laptop' => ['label' => 'MacBook', 'badge' => 'Lucide'],
+                'app-window' => ['label' => 'Ventana App', 'badge' => 'Lucide'],
+                'hard-drive' => ['label' => 'Disco DMG', 'badge' => 'Lucide'],
+                'disc' => ['label' => 'Disco CD/DVD', 'badge' => 'Lucide'],
+                'folder' => ['label' => 'Carpeta Apps', 'badge' => 'Lucide'],
+                'package' => ['label' => 'Instalador', 'badge' => 'Lucide'],
+                // Descargas & Conectividad (Lucide)
+                'download' => ['label' => 'Descargas', 'badge' => 'Lucide'],
+                'cloud-download' => ['label' => 'Cloud Sync', 'badge' => 'Lucide'],
+                'globe' => ['label' => 'Web Global', 'badge' => 'Lucide'],
+                'compass' => ['label' => 'Safari Brújula', 'badge' => 'Lucide'],
+                // Rendimiento & Destacados (Lucide)
+                'sparkles' => ['label' => 'Sparkles / IA', 'badge' => 'Lucide'],
+                'rocket' => ['label' => 'Cohete Turbo', 'badge' => 'Lucide'],
+                'flame' => ['label' => 'Popular / Top', 'badge' => 'Lucide'],
+                'zap' => ['label' => 'Rayo Rápido', 'badge' => 'Lucide'],
+                'shield-check' => ['label' => 'Verificado', 'badge' => 'Lucide'],
+                'key' => ['label' => 'Licencias Key', 'badge' => 'Lucide'],
+                // Creatividad & Especialidades (Lucide)
+                'code' => ['label' => 'Dev Código', 'badge' => 'Lucide'],
+                'layers' => ['label' => 'Capas / Stack', 'badge' => 'Lucide'],
+                'palette' => ['label' => 'Diseño Gráfico', 'badge' => 'Lucide'],
+                'music' => ['label' => 'Audio & Música', 'badge' => 'Lucide'],
+                'film' => ['label' => 'Cine & Video', 'badge' => 'Lucide'],
+                'gamepad' => ['label' => 'Juegos Mac', 'badge' => 'Lucide'],
+                'wrench' => ['label' => 'Utilidades', 'badge' => 'Lucide'],
+                'database' => ['label' => 'Base Datos', 'badge' => 'Lucide'],
+            ];
+        @endphp
+
+        <div x-show="tab === 'logo'" class="space-y-6">
+            <!-- Real-Time Navbar Preview Card -->
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-[#241E18]">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#FF5F56]"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#27C93F]"></span>
+                        <span class="ml-2 text-xs font-bold uppercase tracking-wider text-[#736B63]">Previsualización en la Barra de Navegación</span>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary font-mono font-bold">LIVE PREVIEW</span>
+                </div>
+
+                <!-- Mock Navbar Header -->
+                <div class="h-16 px-6 bg-[rgba(28,25,21,0.95)] border border-[rgba(255,244,224,0.1)] rounded-xl flex items-center justify-between shadow-2xl backdrop-blur-md">
+                    <div class="flex items-center gap-4">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FF5F56]"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#27C93F]"></span>
+                        </span>
+
+                        <!-- Dynamic Logo in Preview -->
+                        <div class="flex items-center gap-2.5">
+                            <!-- Image Logo Preview -->
+                            <div x-show="logoType === 'image'" class="flex items-center">
+                                @if(!empty($settings['logo_image']))
+                                    <img src="{{ $settings['logo_image'] }}" alt="Logo" :style="'height: ' + (parseInt(logoSize) + 8) + 'px;'" class="max-w-[180px] object-contain transition-all">
+                                @else
+                                    <div :style="'height: ' + (parseInt(logoSize) + 8) + 'px;'" class="px-3 rounded bg-primary/20 border border-primary/40 text-primary flex items-center text-xs font-bold transition-all">
+                                        [Logo Imagen Subida]
+                                    </div>
+                                @endif
+                            </div>
+
+                            <!-- Text + Icon Logo Preview -->
+                            <div x-show="logoType === 'text_icon'" class="flex items-center gap-2.5">
+                                <!-- Dynamic Logo Icon Preview -->
+                                <div :style="'width: ' + (parseInt(logoSize) + 8) + 'px; height: ' + (parseInt(logoSize) + 8) + 'px;'" class="flex-shrink-0 relative transition-all">
+                                    @foreach(array_keys($availableIcons) as $ic)
+                                        <div x-show="logoIcon === '{{ $ic }}'" x-cloak class="w-full h-full">
+                                            <x-logo-icon :icon="$ic" class="w-full h-full" />
+                                        </div>
+                                    @endforeach
+                                </div>
+
+                                <!-- Logo Text -->
+                                <span :style="'font-size: ' + logoSize + 'px; line-height: 1;'" class="text-white font-black tracking-[-0.03em] transition-all inline-flex items-center">
+                                    <span x-text="siteName || 'Hax'"></span><span class="text-[#2997FF] font-black" x-text="siteHighlight || 'Mac'"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hidden sm:flex items-center gap-4 text-xs text-[#8C847A]">
+                        <span>Editor's Choice</span>
+                        <span>Categorías</span>
+                        <span>Novedades</span>
+                        <div class="w-6 h-6 rounded-full bg-[#201C18] border border-[#302821] flex items-center justify-center text-[10px]">🔍</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logo Configuration Options -->
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-6">
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                    Modo del Logotipo
+                </h3>
+
+                <!-- Selection Radio Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Option 1: Texto + Icono -->
+                    <label @click="logoType = 'text_icon'"
+                           :class="logoType === 'text_icon' ? 'border-primary bg-primary/10 shadow-lg shadow-primary/10' : 'border-[#262019] bg-[#171411] hover:border-[#382E24]'"
+                           class="p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3.5 select-none">
+                        <input type="radio" name="logo_type" value="text_icon" x-model="logoType" :checked="logoType === 'text_icon'" class="mt-1 text-primary focus:ring-primary">
+                        <div class="pointer-events-none">
+                            <p class="text-sm font-bold text-white">Logotipo en Letras e Icono</p>
+                            <p class="text-xs text-[#8C847A] mt-1">Usa tipografía personalizada con sufijo destacado y un icono macOS Finder o Lucide.</p>
+                        </div>
+                    </label>
+
+                    <!-- Option 2: Logo con Imagen -->
+                    <label @click="logoType = 'image'"
+                           :class="logoType === 'image' ? 'border-primary bg-primary/10 shadow-lg shadow-primary/10' : 'border-[#262019] bg-[#171411] hover:border-[#382E24]'"
+                           class="p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3.5 select-none">
+                        <input type="radio" name="logo_type" value="image" x-model="logoType" :checked="logoType === 'image'" class="mt-1 text-primary focus:ring-primary">
+                        <div class="pointer-events-none">
+                            <p class="text-sm font-bold text-white">Logotipo en Imagen</p>
+                            <p class="text-xs text-[#8C847A] mt-1">Sube una imagen propia (SVG, PNG transparente o WebP) para mostrar como logo oficial.</p>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Logo Size Slider Control -->
+                <div class="pt-4 border-t border-[#241E18]">
+                    <div class="bg-[#12100E] border border-[#2B241C] rounded-2xl p-4.5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-2 h-2 rounded-full bg-primary"></span>
+                                <div>
+                                    <label class="block text-xs font-bold text-white uppercase tracking-wider">Tamaño del Logotipo</label>
+                                    <p class="text-[11px] text-[#736B63] mt-0.5">Desliza para ajustar en tiempo real el tamaño del logo en la cabecera.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-3 py-1 rounded-lg bg-[#1E1914] border border-[#3A3025] text-primary font-mono font-bold text-xs shadow-inner" x-text="logoSize + ' px'"></span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5 pt-1">
+                            <input type="range" name="logo_size" min="14" max="40" step="1"
+                                   x-model.number="logoSize"
+                                   @input="logoSize = Number($event.target.value)"
+                                   class="w-full h-2 bg-[#241D17] rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none">
+                            <div class="flex justify-between text-[10px] text-[#736B63] font-mono px-0.5">
+                                <span>14px (Muy compacto)</span>
+                                <span>20px (Compacto)</span>
+                                <span>25px (Estándar)</span>
+                                <span>32px (Grande)</span>
+                                <span>40px (Máximo)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Text + Icon Settings Fields -->
+                <div x-show="logoType === 'text_icon'" x-transition class="pt-4 border-t border-[#241E18] space-y-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Nombre / Prefijo del Logo *</label>
+                            <input type="text" name="site_name" x-model="siteName"
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                                   placeholder="Hax">
+                            <p class="text-[11px] text-[#736B63] mt-1.5">Texto principal en color blanco (ejemplo: <strong>Hax</strong>).</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Sufijo Destacado (Acento Azul)</label>
+                            <input type="text" name="site_name_highlight" x-model="siteHighlight"
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                                   placeholder="Mac">
+                            <p class="text-[11px] text-[#736B63] mt-1.5">Palabra final con acento de color azul estilo Apple (ejemplo: <strong>Mac</strong>).</p>
+                        </div>
+                    </div>
+
+                    <!-- Icon Selector -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2.5">
+                            <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider">Icono del Logotipo ({{ count($availableIcons) }} opciones)</label>
+                            <span class="text-[11px] text-[#7E776F]">Haz clic en cualquier icono para previsualizarlo arriba</span>
+                        </div>
+
+                        <!-- Dedicated hidden input ensuring exact value is submitted with the form -->
+                        <input type="hidden" name="logo_icon" :value="logoIcon">
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+                            @foreach($availableIcons as $key => $meta)
+                                <div role="button"
+                                     tabindex="0"
+                                     @click="logoIcon = '{{ $key }}'"
+                                     @keydown.enter.prevent="logoIcon = '{{ $key }}'"
+                                     @keydown.space.prevent="logoIcon = '{{ $key }}'"
+                                     :class="logoIcon === '{{ $key }}' ? 'border-primary bg-primary/15 shadow-md shadow-primary/10 ring-1 ring-primary' : 'border-[#262019] bg-[#12100E] hover:border-[#382E24] hover:bg-[#171411]'"
+                                     class="p-3 rounded-xl border flex flex-col items-center gap-2 cursor-pointer transition-all text-center relative group select-none">
+                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shadow pointer-events-none">
+                                        <x-logo-icon :icon="$key" class="w-8 h-8" />
+                                    </div>
+
+                                    <span class="text-xs font-semibold text-white truncate max-w-full block pointer-events-none" title="{{ $meta['label'] }}">
+                                        {{ $meta['label'] }}
+                                    </span>
+                                    <span class="text-[9px] px-1.5 py-0.2 rounded font-mono uppercase pointer-events-none {{ $meta['badge'] === 'Lucide' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'bg-[#221C16] text-[#8C847A] border border-[#302820]' }}">
+                                        {{ $meta['badge'] }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logo Image Upload Field -->
+                <div x-show="logoType === 'image'" x-transition class="pt-4 border-t border-[#241E18] space-y-4">
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider">Subir Archivo de Imagen para el Logo</label>
+
+                    @if(!empty($settings['logo_image']))
+                    <div class="p-4 rounded-xl bg-[#12100E] border border-[#2B241C] flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <img src="{{ $settings['logo_image'] }}" alt="Logo actual" class="h-10 max-w-[180px] object-contain rounded">
+                            <div>
+                                <p class="text-xs font-bold text-white">Logo actual activo</p>
+                                <span class="text-[10px] text-[#736B63] font-mono">{{ $settings['logo_image'] }}</span>
+                            </div>
+                        </div>
+                        <label class="flex items-center gap-2 text-xs text-danger hover:text-danger/80 cursor-pointer">
+                            <input type="checkbox" name="remove_logo_image" value="1" class="rounded text-danger focus:ring-danger">
+                            <span>Eliminar logo</span>
+                        </label>
+                    </div>
+                    @endif
+
+                    <div class="border-2 border-dashed border-[#2B241C] hover:border-primary/50 rounded-2xl p-6 text-center transition-colors">
+                        <input type="file" name="logo_image" id="logo_image" accept="image/png,image/svg+xml,image/webp" class="hidden"
+                               onchange="document.getElementById('logo-preview-name').textContent = this.files[0]?.name || ''">
+                        <label for="logo_image" class="cursor-pointer flex flex-col items-center">
+                            <div class="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-bold text-white">Selecciona una imagen de logotipo</span>
+                            <span class="text-[11px] text-[#736B63] mt-1">Formato SVG recomendado, PNG transparente o WebP (Máx. 2MB)</span>
+                            <span id="logo-preview-name" class="text-xs text-primary font-mono mt-2"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Favicon Upload & Live Viewer -->
+                <div class="pt-5 border-t border-[#241E18] space-y-4" x-data="{
+                    activeFaviconUrl: '{{ !empty($settings['favicon_image']) ? $settings['favicon_image'] : asset('favicon.svg') }}',
+                    previewUrl: null,
+                    fileName: '',
+                    handleFile(e) {
+                        const file = e.target.files[0];
+                        if (file) {
+                            this.fileName = file.name;
+                            this.previewUrl = URL.createObjectURL(file);
+                        }
+                    }
+                }">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider">Favicon del Navegador (.ico, .svg, .png)</label>
+                            <span class="text-[11px] text-[#736B63]">Icono que aparece en la pestaña del navegador y marcadores.</span>
+                        </div>
+                        <a :href="previewUrl || activeFaviconUrl" target="_blank"
+                           class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-[#1C1814] hover:bg-[#2A241F] border border-[#332A20] text-primary transition-colors cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                            <span>Ver a tamaño completo</span>
+                        </a>
+                    </div>
+
+                    <!-- Live Browser Tab Mockup Simulation -->
+                    <div class="p-3.5 rounded-xl bg-[#0D0B09] border border-[#241E18] space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-[#736B63]">Previsualización en Pestaña del Navegador</span>
+                            <span class="text-[10px] text-primary font-mono" x-show="fileName" x-text="'Nuevo: ' + fileName"></span>
+                        </div>
+                        <div class="max-w-md bg-[#1C1814] rounded-xl px-3 py-2 border border-[#332A20] shadow-md flex items-center gap-2.5">
+                            <div class="w-5 h-5 flex-shrink-0 flex items-center justify-center bg-black/50 rounded p-0.5 border border-white/10">
+                                <img :src="previewUrl || activeFaviconUrl" alt="Favicon" class="w-4 h-4 object-contain">
+                            </div>
+                            <span class="text-xs font-semibold text-white truncate flex-1 font-sans">
+                                {{ $settings['site_name'] ?? 'Picho' }}{{ $settings['site_name_highlight'] ?? 'Descargas' }} - Software & Apps
+                            </span>
+                            <span class="text-[10px] text-[#736B63] px-1 hover:text-white cursor-default select-none">✕</span>
+                        </div>
+                    </div>
+
+                    @if(!empty($settings['favicon_image']))
+                    <div class="p-3 rounded-xl bg-[#12100E] border border-[#2B241C] flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-black/60 border border-white/10 flex items-center justify-center p-1">
+                                <img src="{{ $settings['favicon_image'] }}" alt="Favicon" class="w-full h-full object-contain">
+                            </div>
+                            <div>
+                                <span class="text-xs text-white font-medium block">Favicon personalizado activo</span>
+                                <span class="text-[10px] text-[#736B63] font-mono">{{ basename($settings['favicon_image']) }}</span>
+                            </div>
+                        </div>
+                        <label class="flex items-center gap-2 text-xs text-danger hover:text-danger-hover cursor-pointer font-medium">
+                            <input type="checkbox" name="remove_favicon_image" value="1" class="rounded text-danger">
+                            <span>Quitar personalizado</span>
+                        </label>
+                    </div>
+                    @endif
+
+                    <div class="space-y-1.5">
+                        <input type="file" name="favicon_image" accept=".ico,image/svg+xml,image/png,image/webp"
+                               @change="handleFile($event)"
+                               class="w-full text-xs text-[#8C847A] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#201C18] file:text-white hover:file:bg-[#2A241F] file:cursor-pointer cursor-pointer border border-[#2B241C] rounded-xl bg-[#12100E]">
+                        <p class="text-[11px] text-[#736B63]">Formatos compatibles: <strong>.ico</strong>, <strong>.svg</strong>, <strong>.png</strong> o <strong>.webp</strong> (Resolución recomendada: 32x32 o 64x64 px).</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: SEO Y METADATOS -->
+        <div x-show="tab === 'seo'" x-cloak class="space-y-6">
+            <!-- Google Search Preview Card -->
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-[#241E18]">
+                    <span class="text-xs font-bold uppercase tracking-wider text-[#736B63]">Previsualización en Resultados de Google</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded bg-success/20 text-success font-mono font-bold">SEO PREVIEW</span>
+                </div>
+
+                <div class="p-4 rounded-xl bg-[#1A1612] border border-[#262019] space-y-1 max-w-2xl">
+                    <div class="flex items-center gap-1.5 text-xs text-[#8C847A]">
+                        <span>{{ config('app.url') }}</span>
+                        <span>›</span>
+                        <span>home</span>
+                    </div>
+                    <h4 class="text-base font-bold text-[#8AB4F8] hover:underline cursor-pointer truncate"
+                        x-text="seoTitle || '{{ $settings['seo_meta_title'] ?? config('app.name') }}'">
+                    </h4>
+                    <p class="text-xs text-[#BDC1C6] leading-relaxed line-clamp-2"
+                       x-text="seoDesc || '{{ $settings['seo_meta_description'] ?? 'Descubre y descarga las mejores aplicaciones y utilidades para macOS.' }}'">
+                    </p>
+                </div>
+            </div>
+
+            <!-- SEO Input Fields -->
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-5">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-[#A8A199] uppercase tracking-wider">Título SEO Principal (&lt;title&gt;)</label>
+                        <span class="text-[11px] font-mono text-[#736B63]" x-text="(seoTitle ? seoTitle.length : 0) + '/60 caracteres'"></span>
+                    </div>
+                    <input type="text" name="seo_meta_title" x-model="seoTitle" value="{{ $settings['seo_meta_title'] ?? '' }}"
+                           class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                           placeholder="PichoDescargas - Descarga Aplicaciones, Juegos y Software">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-[#A8A199] uppercase tracking-wider">Meta Descripción (&lt;meta name=&quot;description&quot;&gt;)</label>
+                        <span class="text-[11px] font-mono text-[#736B63]" x-text="(seoDesc ? seoDesc.length : 0) + '/160 caracteres'"></span>
+                    </div>
+                    <textarea name="seo_meta_description" x-model="seoDesc" rows="3"
+                              class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl p-3 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors resize-none"
+                              placeholder="Descubre y descarga las mejores aplicaciones y utilidades para macOS. Rápido, seguro y verificado.">{{ $settings['seo_meta_description'] ?? '' }}</textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Palabras Clave (Keywords separadas por coma)</label>
+                    <input type="text" name="seo_keywords" value="{{ $settings['seo_keywords'] ?? '' }}"
+                           class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                           placeholder="mac apps, macos, apple silicon, cleanmymac, utilidades mac, software mac">
+                </div>
+
+                <div class="pt-4 border-t border-[#241E18]">
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Imagen OpenGraph para Redes Sociales (1200x630)</label>
+                    @if(!empty($settings['seo_og_image']))
+                    <div class="mb-3 p-3 rounded-xl bg-[#12100E] border border-[#2B241C] flex items-center justify-between">
+                        <img src="{{ $settings['seo_og_image'] }}" alt="OG Preview" class="h-14 rounded object-cover">
+                        <label class="flex items-center gap-2 text-xs text-danger cursor-pointer">
+                            <input type="checkbox" name="remove_seo_og_image" value="1" class="rounded text-danger">
+                            <span>Quitar imagen</span>
+                        </label>
+                    </div>
+                    @endif
+                    <input type="file" name="seo_og_image" accept="image/jpeg,image/png,image/webp"
+                           class="w-full text-xs text-[#8C847A] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#201C18] file:text-white hover:file:bg-[#2A241F] file:cursor-pointer cursor-pointer">
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: INFORMACIÓN GENERAL Y TEXTOS -->
+        <div x-show="tab === 'general'" x-cloak class="space-y-6">
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Subtítulo / Hero Tagline</label>
+                    <input type="text" name="site_tagline" value="{{ $settings['site_tagline'] ?? '' }}"
+                           class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                           placeholder="Discover the best free Mac apps & games">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Descripción General / Acerca de la Plataforma</label>
+                    <textarea name="site_description" rows="3"
+                              class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl p-3 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors resize-none"
+                              placeholder="Direct downloads of verified, secure, and clean macOS applications, utilities, creative software, and productivity tools.">{{ $settings['site_description'] ?? '' }}</textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Texto de Pie de Página (Copyright / Aviso Legal)</label>
+                    <input type="text" name="footer_text" value="{{ $settings['footer_text'] ?? '' }}"
+                           class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                           placeholder="© 2026 PichoDescargas. Todos los derechos reservados.">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pt-3">
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Facebook (Página / Perfil)</label>
+                        <input type="text" name="facebook_url" value="{{ $settings['facebook_url'] ?? '' }}"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                               placeholder="https://facebook.com/tupagina">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">X.com / Twitter</label>
+                        <input type="text" name="twitter_url" value="{{ $settings['twitter_url'] ?? '' }}"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                               placeholder="https://x.com/tuusuario">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Instagram</label>
+                        <input type="text" name="instagram_url" value="{{ $settings['instagram_url'] ?? '' }}"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                               placeholder="https://instagram.com/tuperfil">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Canal de Telegram</label>
+                        <input type="text" name="telegram_channel" value="{{ $settings['telegram_channel'] ?? '' }}"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                               placeholder="https://t.me/tucanal">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Discord (Servidor / Comunidad)</label>
+                        <input type="text" name="discord_url" value="{{ $settings['discord_url'] ?? '' }}"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                               placeholder="https://discord.gg/tuserver">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Email de Contacto</label>
+                        <input type="email" name="contact_email" value="{{ $settings['contact_email'] ?? '' }}"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors"
+                               placeholder="contacto@pichodescargas.com">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: GENERADOR DE CONTENIDO CON IA (DEEPSEEK & GEMINI) -->
+        <div x-show="tab === 'gemini'" class="space-y-6">
+            <input type="hidden" name="ai_provider" :value="aiProvider">
+
+            <!-- Provider Selection Banner -->
+            <div class="relative overflow-hidden bg-gradient-to-br from-[#1A1824] via-[#14121B] to-[#0F0D15] border border-sky-500/30 rounded-2xl p-6 shadow-2xl">
+                <div class="absolute -top-12 -right-12 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+                    <div class="flex items-start gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0284C7] to-[#38BDF8] p-0.5 shadow-lg shadow-sky-500/25 shrink-0">
+                            <div class="w-full h-full bg-[#0D1524] rounded-[14px] flex items-center justify-center text-[#38BDF8]">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-white tracking-tight">Motores de Inteligencia Artificial para Contenido</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30 uppercase">DeepSeek &amp; Gemini</span>
+                            </div>
+                            <p class="text-xs text-[#A8A199] max-w-2xl leading-relaxed">
+                                Redacta automáticamente descripciones concisas en <strong class="text-white">inglés nativo</strong> de <strong class="text-white">~4 renglones</strong> (50-65 palabras) con <strong class="text-white">enlaces SEO internos a su categoría</strong> y genera <strong class="text-white">7 características clave</strong> para los bullets brillantes.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Provider Selector Buttons -->
+                    <div class="flex items-center gap-1.5 p-1 bg-[#121018] border border-[#2D273B] rounded-xl text-xs shrink-0">
+                        <button type="button" @click="aiProvider = 'deepseek'"
+                                :class="aiProvider === 'deepseek' ? 'bg-[#0284C7] text-white font-black shadow-md shadow-sky-500/20' : 'text-[#8C847A] hover:text-white'"
+                                class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer">
+                            <span>⚡ DeepSeek (V3/R1)</span>
+                        </button>
+                        <button type="button" @click="aiProvider = 'gemini'"
+                                :class="aiProvider === 'gemini' ? 'bg-[#E11D48] text-white font-black shadow-md shadow-rose-500/20' : 'text-[#8C847A] hover:text-white'"
+                                class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer">
+                            <span>🔮 Google Gemini 2.5</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DeepSeek Configuration Box -->
+            <div x-show="aiProvider === 'deepseek'" x-transition class="bg-[#14110E] border border-sky-500/30 rounded-2xl p-6 space-y-6 shadow-xl relative">
+                <div class="flex items-center justify-between pb-3 border-b border-[#241E18]">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-sm shadow-sky-400"></span>
+                        <h4 class="text-sm font-bold text-white uppercase tracking-wider">Configuración de DeepSeek API</h4>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20">Recomendado</span>
+                    </div>
+
+                    <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer"
+                       class="px-3 py-1.5 rounded-xl bg-[#1A1612] hover:bg-[#251F1A] border border-sky-500/30 text-sky-400 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        <span>Obtener API Key de DeepSeek</span>
+                    </a>
+                </div>
+
+                <!-- DeepSeek API Key Input -->
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2 flex items-center justify-between">
+                        <span>DeepSeek API Key</span>
+                        <span class="text-[11px] text-[#736B63] normal-case">Conexión con api.deepseek.com</span>
+                    </label>
+                    <div class="relative flex items-center">
+                        <input :type="showDeepseekApiKey ? 'text' : 'password'"
+                               name="deepseek_api_key"
+                               x-model="deepseekApiKey"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-sky-400 rounded-xl pl-4 pr-24 py-3 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors font-mono"
+                               placeholder="sk-...">
+                        
+                        <div class="absolute right-2 flex items-center gap-1.5">
+                            <button type="button" @click="showDeepseekApiKey = !showDeepseekApiKey"
+                                    class="p-1.5 rounded-lg text-[#8C847A] hover:text-white hover:bg-[#1E1914] transition-colors"
+                                    title="Mostrar/Ocultar clave">
+                                <svg x-show="!showDeepseekApiKey" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                <svg x-show="showDeepseekApiKey" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
+                                </svg>
+                            </button>
+                            
+                            <button type="button" @click="testDeepseekConnection()"
+                                    :disabled="testingDeepseek"
+                                    class="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-400 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
+                                <svg x-show="testingDeepseek" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                                <span x-text="testingDeepseek ? 'Probando...' : 'Probar'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Connection Test Feedback -->
+                    <div x-show="testDeepseekResult" x-cloak class="mt-3">
+                        <div :class="testDeepseekResult?.success ? 'bg-success/15 border-success/30 text-success' : 'bg-danger/15 border-danger/30 text-danger'"
+                             class="p-3 rounded-xl border text-xs flex items-center gap-2.5">
+                            <span class="w-2 h-2 rounded-full shrink-0" :class="testDeepseekResult?.success ? 'bg-success' : 'bg-danger'"></span>
+                            <span class="font-medium" x-text="testDeepseekResult?.message"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DeepSeek Model Selection -->
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Modelo de DeepSeek</label>
+                    <select name="deepseek_model" x-model="deepseekModel"
+                            class="w-full bg-[#12100E] border border-[#2B241C] focus:border-sky-400 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-colors">
+                        <option value="deepseek-chat">deepseek-chat (DeepSeek-V3 - Ultrarrápido, Máxima Calidad &amp; Económico)</option>
+                        <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1 - Razonamiento Profundo)</option>
+                    </select>
+                    <p class="text-[11px] text-[#736B63] mt-1.5">
+                        <code>deepseek-chat</code> utiliza DeepSeek-V3, el modelo con mejor relación calidad/velocidad del mercado para generación estructurada JSON.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Gemini Configuration Box -->
+            <div x-show="aiProvider === 'gemini'" x-transition class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 space-y-6 shadow-xl relative">
+                <div class="flex items-center justify-between pb-3 border-b border-[#241E18]">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-400 shadow-sm shadow-rose-400"></span>
+                        <h4 class="text-sm font-bold text-white uppercase tracking-wider">Configuración de Google Gemini API</h4>
+                    </div>
+
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+                       class="px-3 py-1.5 rounded-xl bg-[#1A1612] hover:bg-[#251F1A] border border-[#3A3025] hover:border-primary/50 text-[#C4BDB5] hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
+                        <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        <span>Obtener API Key de Google Studio</span>
+                    </a>
+                </div>
+
+                <!-- Gemini API Key Input -->
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2 flex items-center justify-between">
+                        <span>Google Gemini API Key</span>
+                        <span class="text-[11px] text-[#736B63] normal-case">Guardada de forma segura</span>
+                    </label>
+                    <div class="relative flex items-center">
+                        <input :type="showApiKey ? 'text' : 'password'"
+                               name="gemini_api_key"
+                               x-model="geminiApiKey"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl pl-4 pr-24 py-3 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors font-mono"
+                               placeholder="AIzaSy...">
+                        
+                        <div class="absolute right-2 flex items-center gap-1.5">
+                            <button type="button" @click="showApiKey = !showApiKey"
+                                    class="p-1.5 rounded-lg text-[#8C847A] hover:text-white hover:bg-[#1E1914] transition-colors"
+                                    title="Mostrar/Ocultar clave">
+                                <svg x-show="!showApiKey" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                <svg x-show="showApiKey" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
+                                </svg>
+                            </button>
+                            
+                            <button type="button" @click="testGeminiConnection()"
+                                    :disabled="testingGemini"
+                                    class="px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
+                                <svg x-show="testingGemini" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                                <span x-text="testingGemini ? 'Probando...' : 'Probar'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Connection Test Feedback -->
+                    <div x-show="testGeminiResult" x-cloak class="mt-3">
+                        <div :class="testGeminiResult?.success ? 'bg-success/15 border-success/30 text-success' : 'bg-danger/15 border-danger/30 text-danger'"
+                             class="p-3 rounded-xl border text-xs flex items-center gap-2.5">
+                            <span class="w-2 h-2 rounded-full shrink-0" :class="testGeminiResult?.success ? 'bg-success' : 'bg-danger'"></span>
+                            <span class="font-medium" x-text="testGeminiResult?.message"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gemini Model Selection -->
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Modelo de Gemini</label>
+                    <select name="gemini_model" x-model="geminiModel"
+                            class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-colors">
+                        <option value="gemini-2.5-flash">gemini-2.5-flash (Recomendado - Ultrarrápido &amp; Económico)</option>
+                        <option value="gemini-2.5-pro">gemini-2.5-pro (Máximo razonamiento &amp; Calidad editorial)</option>
+                        <option value="gemini-2.0-flash">gemini-2.0-flash (Alternativa estable)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Common Editorial Rules Box -->
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 space-y-6 shadow-xl">
+                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 pb-3 border-b border-[#241E18]">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                    Reglas Editoriales &amp; Automatización en Scrapers
+                </h4>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Generación Automática</label>
+                        <div class="flex items-center justify-between p-3.5 bg-[#12100E] border border-[#2B241C] rounded-xl">
+                            <div>
+                                <span class="text-sm font-semibold text-white block">Auto-generar al importar</span>
+                                <span class="text-[11px] text-[#736B63]">Aplica IA a cada aplicación nueva o actualizada</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="hidden" name="deepseek_auto_generate" value="0">
+                                <input type="hidden" name="gemini_auto_generate" value="0">
+                                <input type="checkbox" name="deepseek_auto_generate" value="1"
+                                       {{ ($settings['deepseek_auto_generate'] ?? '1') == '1' ? 'checked' : '' }}
+                                       class="sr-only peer">
+                                <div class="w-11 h-6 bg-[#262019] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2 flex items-center justify-between">
+                            <span>Longitud Objetivo</span>
+                            <span class="text-primary font-mono font-bold">~4 renglones (50-65 palabras)</span>
+                        </label>
+                        <input type="number" name="deepseek_target_words" min="30" max="300"
+                               value="{{ $settings['deepseek_target_words'] ?? ($settings['gemini_target_words'] ?? '60') }}"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors">
+                        <p class="text-[11px] text-[#736B63] mt-1.5">
+                            Genera estrictamente 1 párrafo conciso con hipervínculos SEO automáticos hacia su categoría.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-[#241E18]">
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2 flex items-center justify-between">
+                        <span>Cantidad de Características (Features)</span>
+                        <span class="text-primary font-mono font-bold">7 viñetas clave</span>
+                    </label>
+                    <input type="number" name="deepseek_features_count" min="3" max="15"
+                           value="{{ $settings['deepseek_features_count'] ?? ($settings['gemini_features_count'] ?? '7') }}"
+                           class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors max-w-sm">
+                    <p class="text-[11px] text-[#736B63] mt-1.5">
+                        Genera viñetas con formato <code>&lt;li&gt;&lt;strong&gt;Título:&lt;/strong&gt; Descripción&lt;/li&gt;</code> para lucir con los bullets brillantes.
+                    </p>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- TAB 5: CLOUDFLARE R2 & ALMACENAMIENTO -->
+        <div x-show="tab === 'storage'" x-cloak x-init="fetchR2Stats()" class="space-y-6">
+            <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl space-y-6">
+                <!-- Tab Title & Master Activation Switch -->
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-[#241E18]">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-xl bg-[#F38020]/15 border border-[#F38020]/30 flex items-center justify-center text-[#F38020] shadow-inner shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center gap-2">
+                                <span>Cloudflare R2 Storage (Torrents &amp; Media)</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#F38020]/20 text-[#F38020] border border-[#F38020]/30">Zero Egress Fees</span>
+                            </h2>
+                            <p class="text-xs text-[#8C847A] mt-0.5">Almacena archivos .torrent e imágenes en la nube global de Cloudflare con 10 GB gratuitos y tráfico ilimitado.</p>
+                        </div>
+                    </div>
+
+                    <!-- Master Switch and Test Button Group -->
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Master ON / OFF Toggle Button -->
+                        <button type="button" @click="toggleR2Master(!r2Enabled)" :disabled="togglingR2"
+                                :class="r2Enabled ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25' : 'bg-white/5 border-white/10 text-[#8C847A] hover:text-white hover:bg-white/10'"
+                                class="px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
+                                title="Activar o desactivar Cloudflare R2 como almacenamiento principal">
+                            <span class="w-2.5 h-2.5 rounded-full" :class="r2Enabled ? 'bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400' : 'bg-[#736B63]'"></span>
+                            <span x-text="r2Enabled ? 'R2 ACTIVADO' : 'R2 DESACTIVADO'"></span>
+                            <svg x-show="togglingR2" class="w-3.5 h-3.5 animate-spin ml-1" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
+
+                        <!-- Test Connection Button -->
+                        <button type="button" @click="testR2Connection()" :disabled="testingR2"
+                                class="px-3.5 py-2 rounded-xl bg-[#F38020]/15 hover:bg-[#F38020]/25 text-[#F38020] border border-[#F38020]/40 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm">
+                            <template x-if="!testingR2">
+                                <span class="flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    Probar Conexión R2
+                                </span>
+                            </template>
+                            <template x-if="testingR2">
+                                <span class="flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Probando bucket...
+                                </span>
+                            </template>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Test Result Banner -->
+                <div x-show="testR2Result" x-cloak
+                     :class="testR2Result?.success ? 'bg-success/10 border-success/30 text-success' : 'bg-danger/10 border-danger/30 text-danger'"
+                     class="p-4 rounded-xl border text-xs flex items-start gap-2.5 transition-all">
+                    <template x-if="testR2Result?.success">
+                        <svg class="w-4 h-4 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                    </template>
+                    <template x-if="!testR2Result?.success">
+                        <svg class="w-4 h-4 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                    </template>
+                    <div class="flex-1">
+                        <span class="font-bold block" x-text="testR2Result?.success ? '¡Conexión Exitosa con Cloudflare R2!' : 'Error de Conexión'"></span>
+                        <span class="text-[11px] opacity-90" x-text="testR2Result?.message"></span>
+                    </div>
+                </div>
+
+                <!-- 1. LIVE STORAGE DIAGNOSTICS CARDS -->
+                <div class="space-y-2.5">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-bold text-[#A8A199] uppercase tracking-wider flex items-center gap-2">
+                            <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            Diagnóstico de Torrents en Vivo
+                        </span>
+                        <button type="button" @click="fetchR2Stats()" :disabled="r2Stats.loading"
+                                class="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50">
+                            <svg class="w-3 h-3" :class="r2Stats.loading ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            <span>Refrescar Diagnóstico</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <!-- Total Torrents -->
+                        <div class="p-3.5 rounded-xl bg-[#12100E] border border-[#262019] space-y-1">
+                            <div class="flex items-center justify-between text-[#8C847A] text-[11px] font-medium">
+                                <span>Total con Torrent</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z"/></svg>
+                            </div>
+                            <div class="text-xl font-bold text-white font-mono" x-text="r2Stats.total_torrents">0</div>
+                            <div class="text-[10px] text-[#736B63]">Apps en catálogo</div>
+                        </div>
+
+                        <!-- In Cloudflare R2 -->
+                        <div class="p-3.5 rounded-xl bg-[#12100E] border border-[#F38020]/30 space-y-1">
+                            <div class="flex items-center justify-between text-[#F38020] text-[11px] font-medium">
+                                <span>En Cloudflare R2</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                            </div>
+                            <div class="text-xl font-bold text-white font-mono" x-text="r2Stats.in_r2">0</div>
+                            <div class="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                <span>Almacenados en la nube</span>
+                            </div>
+                        </div>
+
+                        <!-- In Local Storage -->
+                        <div class="p-3.5 rounded-xl bg-[#12100E] border border-[#262019] space-y-1">
+                            <div class="flex items-center justify-between text-sky-400 text-[11px] font-medium">
+                                <span>En Servidor Local</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                            </div>
+                            <div class="text-xl font-bold text-white font-mono" x-text="r2Stats.in_local">0</div>
+                            <div class="text-[10px] text-[#736B63]">storage/app/public</div>
+                        </div>
+
+                        <!-- Pending / External -->
+                        <div class="p-3.5 rounded-xl bg-[#12100E] border border-[#262019] space-y-1">
+                            <div class="flex items-center justify-between text-amber-400 text-[11px] font-medium">
+                                <span>Pendientes / Externos</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            </div>
+                            <div class="text-xl font-bold text-white font-mono" x-text="r2Stats.pending_external">0</div>
+                            <div class="text-[10px] text-amber-400/80">Por migrar a R2</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. R2 MIGRATION & BACKUP ACTION CENTER -->
+                <div class="p-5 rounded-2xl bg-gradient-to-br from-[#1C1611] via-[#14110E] to-[#100D0B] border border-[#F38020]/30 space-y-4 shadow-xl">
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <svg class="w-4 h-4 text-[#F38020]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                            </svg>
+                            <span>Centro de Migración y Respaldo a Cloudflare R2</span>
+                        </h3>
+                        <p class="text-xs text-[#8C847A]">Localiza los enlaces externos a archivos .torrent oficiales de PichoDescargas y transfiérelos a Cloudflare R2.</p>
+                    </div>
+
+                    <!-- Action Buttons Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        <!-- Option 1: Pending / External only -->
+                        <button type="button" @click="startR2Migration('pending_only')" :disabled="isMigratingR2"
+                                class="p-4 rounded-xl border border-[#3A2E22] hover:border-[#F38020] bg-[#16120E] hover:bg-[#1E1712] text-left transition-all group cursor-pointer disabled:opacity-50">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                    <span>Subir solo Pendientes / Externos a R2</span>
+                                </span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">RECOMENDADO</span>
+                            </div>
+                            <p class="text-[11px] text-[#8C847A] leading-relaxed">
+                                Descarga únicamente los torrents que están en TorrentMac o externos, los renombra con <strong class="text-white">_PichoDescargas.torrent</strong> y los sube a R2.
+                            </p>
+                        </button>
+
+                        <!-- Option 2: Upload ALL to R2 -->
+                        <button type="button" @click="startR2Migration('all')" :disabled="isMigratingR2"
+                                class="p-4 rounded-xl border border-[#3A2E22] hover:border-[#F38020] bg-[#16120E] hover:bg-[#1E1712] text-left transition-all group cursor-pointer disabled:opacity-50">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-[#F38020]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                                    </svg>
+                                    <span>Subir TODOS los Torrents a R2</span>
+                                </span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#F38020]/15 text-[#F38020] border border-[#F38020]/30">MIGRACIÓN COMPLETA</span>
+                            </div>
+                            <p class="text-[11px] text-[#8C847A] leading-relaxed">
+                                Transfiere todo tu catálogo (archivos locales y externos) al bucket de Cloudflare R2 para liberar espacio del servidor local.
+                            </p>
+                        </button>
+                    </div>
+
+                    <!-- Live Progress Bar & Status (Visible during migration or when completed) -->
+                    <div x-show="isMigratingR2 || migrationProgress > 0" x-cloak class="pt-3 border-t border-[#2B231B] space-y-3">
+                        <div class="flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-2">
+                                <span x-show="isMigratingR2" class="w-2.5 h-2.5 rounded-full bg-[#F38020] animate-ping"></span>
+                                <span class="font-bold text-white" x-text="isMigratingR2 ? 'Migrando lotes hacia Cloudflare R2...' : 'Migración Finalizada'"></span>
+                                <span class="text-[11px] text-[#8C847A]" x-text="'(' + migrationProcessedCount + ' procesados' + (migrationRemaining > 0 ? ', ' + migrationRemaining + ' restantes' : '') + ')'"></span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="font-mono font-bold text-[#F38020]" x-text="migrationProgress + '%'"></span>
+                                <button x-show="isMigratingR2" type="button" @click="cancelR2Migration()"
+                                        class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-danger/15 text-danger border border-danger/30 hover:bg-danger/25 transition-colors cursor-pointer">
+                                    Detener
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Animated Progress Bar -->
+                        <div class="w-full bg-[#120F0D] rounded-full h-2.5 overflow-hidden border border-[#2B241C] p-0.5 shadow-inner">
+                            <div class="bg-gradient-to-r from-primary via-[#F38020] to-emerald-400 h-full rounded-full transition-all duration-300"
+                                 :style="'width: ' + migrationProgress + '%'"></div>
+                        </div>
+
+                        <!-- Live Terminal / Logs Box -->
+                        <div class="bg-[#0B0908] border border-[#241E18] rounded-xl p-3 max-h-44 overflow-y-auto font-mono text-[11px] space-y-1.5 scrollbar-thin">
+                            <template x-for="(log, idx) in migrationLogs" :key="idx">
+                                <div class="flex items-center gap-2">
+                                    <span x-show="log.success" class="text-emerald-400 font-bold shrink-0">✓</span>
+                                    <span x-show="!log.success && log.fallback_magnet" class="text-amber-400 font-bold shrink-0">!</span>
+                                    <span x-show="!log.success && !log.fallback_magnet" class="text-danger font-bold shrink-0">✗</span>
+                                    <span class="text-white font-sans truncate font-medium" x-text="log.name"></span>
+                                    <span class="text-[#8C847A] truncate font-mono text-[10px]" x-text="'(' + log.filename + ')'"></span>
+                                    <span x-show="log.driver === 'r2'" class="text-[9px] px-1 rounded bg-[#F38020]/20 text-[#F38020] border border-[#F38020]/30 ml-auto shrink-0">R2</span>
+                                    <span x-show="log.driver === 'local' || log.driver === 'public'" class="text-[9px] px-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 ml-auto shrink-0">Local</span>
+                                    <span x-show="log.fallback_magnet" class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 ml-auto shrink-0">Magnet Fallback</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Storage Mode Selector (Local vs R2) -->
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Destino de Almacenamiento para Scraper TorrentMac</label>
+                    <input type="hidden" name="torrentmac_storage_disk" :value="torrentDisk">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button type="button" @click="torrentDisk = 'local'"
+                                :class="torrentDisk === 'local' ? 'border-primary bg-primary/10 text-white shadow-lg shadow-primary/10' : 'border-[#262019] bg-[#12100E] text-[#8C847A] hover:border-[#383025] hover:text-white'"
+                                class="p-4 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="torrentDisk === 'local' ? 'bg-primary text-white' : 'bg-white/5 text-[#8C847A]'">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-bold text-xs flex items-center gap-1.5">
+                                    <span>📁 Almacenamiento Local</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-white/10 text-white/80">storage/app/public</span>
+                                </div>
+                                <p class="text-[11px] text-[#736B63] mt-1">Guarda los archivos directamente en tu servidor local. Ideal para pruebas rápidas sin configurar cuentas externas.</p>
+                            </div>
+                        </button>
+
+                        <button type="button" @click="torrentDisk = 'r2'"
+                                :class="torrentDisk === 'r2' ? 'border-[#F38020] bg-[#F38020]/10 text-white shadow-lg shadow-[#F38020]/10' : 'border-[#262019] bg-[#12100E] text-[#8C847A] hover:border-[#383025] hover:text-white'"
+                                class="p-4 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="torrentDisk === 'r2' ? 'bg-[#F38020] text-white' : 'bg-white/5 text-[#8C847A]'">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-bold text-xs flex items-center gap-1.5">
+                                    <span>☁️ Cloudflare R2 (Recomendado)</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#F38020]/20 text-[#F38020]">Producción</span>
+                                </div>
+                                <p class="text-[11px] text-[#736B63] mt-1">Sube los .torrent a la nube global de Cloudflare. Cero consumo de ancho de banda en tu servidor principal.</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Credential Inputs Grid -->
+                <div class="space-y-4 pt-4 border-t border-[#241E18]">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-[#F38020]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                        </svg>
+                        Credenciales de la API R2
+                    </h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Account ID -->
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] mb-1.5">
+                                Cloudflare Account ID <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="r2_account_id" x-model="r2AccountId"
+                                   placeholder="Ej: a1b2c3d4e5f67890abcdef1234567890"
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#F38020] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors font-mono">
+                            <p class="text-[11px] text-[#736B63] mt-1">Lo encuentras en tu panel de Cloudflare > R2 > 'Account ID' (columna derecha).</p>
+                        </div>
+
+                        <!-- Bucket Name -->
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] mb-1.5">
+                                Nombre del Bucket <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="r2_bucket" x-model="r2Bucket"
+                                   placeholder="Ej: descargasweb-torrents"
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#F38020] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors font-mono">
+                            <p class="text-[11px] text-[#736B63] mt-1">El nombre exacto de tu bucket creado en Cloudflare R2.</p>
+                        </div>
+
+                        <!-- Access Key ID -->
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] mb-1.5">
+                                Access Key ID <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="r2_access_key_id" x-model="r2AccessKeyId"
+                                   placeholder="Ej: 8c6a01b7a2d48c3f..."
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#F38020] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors font-mono">
+                            <p class="text-[11px] text-[#736B63] mt-1">Generado en Cloudflare > R2 > 'Manage R2 API Tokens'.</p>
+                        </div>
+
+                        <!-- Secret Access Key -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-bold text-[#A8A199]">
+                                    Secret Access Key <span class="text-danger">*</span>
+                                </label>
+                                <button type="button" @click="showR2Secret = !showR2Secret"
+                                        class="text-[11px] text-[#F38020] hover:underline cursor-pointer">
+                                    <span x-text="showR2Secret ? 'Ocultar' : 'Mostrar'"></span>
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <input :type="showR2Secret ? 'text' : 'password'"
+                                       name="r2_secret_access_key" x-model="r2SecretAccessKey"
+                                       placeholder="••••••••••••••••••••••••••••••••"
+                                       class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#F38020] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors font-mono">
+                            </div>
+                            <p class="text-[11px] text-[#736B63] mt-1">El token secreto HMAC para firmar las peticiones S3 a R2.</p>
+                        </div>
+                    </div>
+
+                    <!-- Public Custom URL / Dev URL -->
+                    <div class="pt-2">
+                        <label class="block text-xs font-bold text-[#A8A199] mb-1.5">
+                            Dominio Público / URL de Entrega de R2 (Opcional)
+                        </label>
+                        <input type="text" name="r2_url" x-model="r2Url"
+                               placeholder="Ej: https://pub-xxxxxxxxxxxxxxxxxxxxxxxx.r2.dev o https://torrents.tudominio.com"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#F38020] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#6E675E] focus:outline-none transition-colors font-mono">
+                        <p class="text-[11px] text-[#736B63] mt-1">
+                            URL pública para descargar directamente los archivos desde Cloudflare CDN. Puedes habilitar 'Public Development URL' en Cloudflare R2 o conectar tu propio dominio.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Mini Guide Card -->
+                <div class="p-4 bg-[#110E0C] border border-[#2B221B] rounded-xl space-y-2.5">
+                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-[#F38020]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        ¿Cómo obtener tus credenciales R2 en Cloudflare en 3 minutos?
+                    </span>
+                    <ol class="text-[11px] text-[#8C847A] space-y-1 list-decimal list-inside leading-relaxed">
+                        <li>Inicia sesión en <a href="https://dash.cloudflare.com/" target="_blank" class="text-[#F38020] underline">dash.cloudflare.com</a> y haz clic en <strong>R2</strong> en el menú lateral.</li>
+                        <li>Crea un Bucket (por ejemplo: <code>descargasweb-torrents</code>) con ubicación automática o Norteamérica / Europa.</li>
+                        <li>Haz clic en <strong>Manage R2 API Tokens</strong> &gt; <strong>Create API Token</strong> con permisos <strong>Object Read & Write</strong>. Copia tu <em>Access Key ID</em>, <em>Secret Access Key</em> y el <em>Account ID</em> de tu cuenta.</li>
+                        <li>¡Listo! Pégalos aquí arriba y pulsa <strong>Probar Conexión R2</strong>.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: SCRIPTS & ANALYTICS -->
+        <div x-show="tab === 'scripts'" class="space-y-6">
+            <!-- Top Banner Card -->
+            <div class="bg-[#14110E] border border-emerald-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                <div class="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="flex items-start gap-4 relative z-10">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-mono font-bold text-lg shadow-inner shrink-0">
+                        &lt;/&gt;
+                    </div>
+                    <div class="space-y-2 flex-1">
+                        <div class="flex flex-wrap items-center gap-2.5">
+                            <h2 class="text-base font-bold text-white tracking-tight">Inyección de Código Personalizado & Analítica Web</h2>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono">
+                                Google Analytics / Search Console / Pixel / Ads
+                            </span>
+                        </div>
+                        <p class="text-xs text-[#8C847A] leading-relaxed max-w-4xl">
+                            Inserta tus etiquetas de seguimiento, códigos de verificación y scripts de analítica de forma segura sin tener que tocar archivos PHP. El código se inyecta directamente en las páginas públicas respetando el estándar técnico de Google, Meta y redes de publicidad.
+                        </p>
+                        <div class="pt-2 flex flex-wrap items-center gap-4 text-[11px] text-[#A8A199]">
+                            <span class="inline-flex items-center gap-1.5 text-emerald-400">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                Sin tocar archivos PHP
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 text-emerald-400">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                Seguro: No afecta el panel de administración
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 text-emerald-400">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                Compatible con HTML, JavaScript, CSS, &lt;meta&gt; y &lt;noscript&gt;
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Block 1: <HEAD> -->
+            <div class="bg-[#14110E] border border-[#2B241C] hover:border-[#382E24] rounded-2xl p-6 shadow-xl space-y-4 transition-colors">
+                <div class="space-y-1.5">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-mono text-[10px] font-bold tracking-wider">&lt;HEAD&gt;</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">CÓDIGO EN LA CABECERA (&lt;HEAD&gt;)</h3>
+                    </div>
+                    <p class="text-xs text-[#8C847A] leading-relaxed">
+                        Se inserta justo antes de <code class="text-blue-400 bg-blue-500/10 px-1 py-0.5 rounded text-[11px]">&lt;/head&gt;</code>. Ideal para verificación de Google Search Console (&lt;meta name="google-site-verification"&gt;), Google Analytics 4 (gtag.js), Google Tag Manager, Meta Pixel (Facebook), verificación de Google AdSense o scripts de tracking principales.
+                    </p>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                        <label for="custom_head_code" class="font-bold text-[#A8A199] uppercase tracking-wider">
+                            Fragmento HTML / JavaScript para &lt;head&gt;:
+                        </label>
+                        <span class="text-[11px] text-[#736B63] font-mono truncate">
+                            Ejemplo: &lt;script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXX"&gt;&lt;/script&gt;
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <textarea id="custom_head_code" name="custom_head_code" rows="8" spellcheck="false"
+                                  placeholder="<!-- Google tag (gtag.js) -->&#10;<script async src=&quot;https://www.googletagmanager.com/gtag/js?id=G-1NC1BF1YF4&quot;></script>&#10;<script>&#10;  window.dataLayer = window.dataLayer || [];&#10;  function gtag(){dataLayer.push(arguments);}&#10;  gtag('js', new Date());&#10;&#10;  gtag('config', 'G-1NC1BF1YF4');&#10;</script>"
+                                  class="w-full bg-[#0A0908] border border-[#2B241C] focus:border-blue-500/70 focus:ring-1 focus:ring-blue-500/30 rounded-xl p-4 text-xs font-mono text-emerald-400 placeholder-[#4A433B] focus:outline-none transition-all leading-relaxed shadow-inner">{{ old('custom_head_code', $settings['custom_head_code'] ?? '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Block 2: <BODY> -->
+            <div class="bg-[#14110E] border border-[#2B241C] hover:border-[#382E24] rounded-2xl p-6 shadow-xl space-y-4 transition-colors">
+                <div class="space-y-1.5">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 font-mono text-[10px] font-bold tracking-wider">&lt;BODY&gt;</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">CÓDIGO DE APERTURA (&lt;BODY&gt;)</h3>
+                    </div>
+                    <p class="text-xs text-[#8C847A] leading-relaxed">
+                        Se inserta inmediatamente después de la apertura de la etiqueta <code class="text-purple-400 bg-purple-500/10 px-1 py-0.5 rounded text-[11px]">&lt;body&gt;</code>. Utilizado habitualmente por el fragmento <code class="text-purple-400 bg-purple-500/10 px-1 py-0.5 rounded text-[11px]">&lt;noscript&gt;</code> de Google Tag Manager.
+                    </p>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                        <label for="custom_body_code" class="font-bold text-[#A8A199] uppercase tracking-wider">
+                            Fragmento HTML / Noscript para inicio de &lt;body&gt;:
+                        </label>
+                        <span class="text-[11px] text-[#736B63] font-mono truncate">
+                            Ejemplo: &lt;noscript&gt;&lt;iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXX" ...&gt;
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <textarea id="custom_body_code" name="custom_body_code" rows="5" spellcheck="false"
+                                  placeholder="<!-- Google Tag Manager (noscript) -->&#10;<noscript><iframe src=&quot;https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX&quot;&#10;height=&quot;0&quot; width=&quot;0&quot; style=&quot;display:none;visibility:hidden&quot;></iframe></noscript>"
+                                  class="w-full bg-[#0A0908] border border-[#2B241C] focus:border-purple-500/70 focus:ring-1 focus:ring-purple-500/30 rounded-xl p-4 text-xs font-mono text-purple-300 placeholder-[#4A433B] focus:outline-none transition-all leading-relaxed shadow-inner">{{ old('custom_body_code', $settings['custom_body_code'] ?? '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Block 3: </BODY> -->
+            <div class="bg-[#14110E] border border-[#2B241C] hover:border-[#382E24] rounded-2xl p-6 shadow-xl space-y-4 transition-colors">
+                <div class="space-y-1.5">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono text-[10px] font-bold tracking-wider">&lt;/BODY&gt;</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">CÓDIGO DE PIE DE PÁGINA (ANTES DE &lt;/BODY&gt;)</h3>
+                    </div>
+                    <p class="text-xs text-[#8C847A] leading-relaxed">
+                        Se inserta justo antes de cerrar <code class="text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded text-[11px]">&lt;/body&gt;</code>. Ideal para widgets de soporte (Crisp, Tawk.to, WhatsApp), scripts de anuncios diferidos, popunders o JavaScript de analítica secundaria.
+                    </p>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                        <label for="custom_footer_code" class="font-bold text-[#A8A199] uppercase tracking-wider">
+                            Fragmento HTML / JavaScript para pie de página:
+                        </label>
+                        <span class="text-[11px] text-[#736B63] font-mono truncate">
+                            Ejemplo: Scripts de Chat, Anuncios o Analytics diferido
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <textarea id="custom_footer_code" name="custom_footer_code" rows="5" spellcheck="false"
+                                  placeholder="<!-- Widget de Chat o Scripts diferidos -->&#10;<script>&#10;  // Tu script personalizado&#10;</script>"
+                                  class="w-full bg-[#0A0908] border border-[#2B241C] focus:border-amber-500/70 focus:ring-1 focus:ring-amber-500/30 rounded-xl p-4 text-xs font-mono text-amber-300 placeholder-[#4A433B] focus:outline-none transition-all leading-relaxed shadow-inner">{{ old('custom_footer_code', $settings['custom_footer_code'] ?? '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Helpful Quick Guide Card -->
+            <div class="p-5 bg-[#110E0C] border border-[#2B221B] rounded-2xl space-y-3">
+                <div class="flex items-center gap-2 text-xs font-bold text-white">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Guía de Verificación & Servicios Frecuentes</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                    <div class="p-3 bg-[#171411] border border-[#262019] rounded-xl space-y-1">
+                        <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                            Google Search Console
+                        </p>
+                        <p class="text-[11px] text-[#8C847A] leading-relaxed">
+                            Copia la etiqueta HTML <code class="text-blue-300 font-mono text-[10px]">&lt;meta name="google-site-verification" content="..."&gt;</code> y pégala directamente en <strong>CÓDIGO EN LA CABECERA (&lt;HEAD&gt;)</strong>.
+                        </p>
+                    </div>
+
+                    <div class="p-3 bg-[#171411] border border-[#262019] rounded-xl space-y-1">
+                        <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            Google Analytics 4 & Ads
+                        </p>
+                        <p class="text-[11px] text-[#8C847A] leading-relaxed">
+                            Pega el bloque completo de <code class="text-emerald-300 font-mono text-[10px]">gtag.js</code> en <strong>&lt;HEAD&gt;</strong> para medir visitas y conversiones en tiempo real.
+                        </p>
+                    </div>
+
+                    <div class="p-3 bg-[#171411] border border-[#262019] rounded-xl space-y-1">
+                        <p class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                            Google Tag Manager (GTM)
+                        </p>
+                        <p class="text-[11px] text-[#8C847A] leading-relaxed">
+                            Pega el primer bloque en <strong>&lt;HEAD&gt;</strong> y el bloque secundario <code class="text-purple-300 font-mono text-[10px]">&lt;noscript&gt;</code> en <strong>CÓDIGO DE APERTURA (&lt;BODY&gt;)</strong>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: NOTIFICACIONES & WEBHOOKS (TELEGRAM & DISCORD) -->
+        <div x-show="tab === 'notifications'" x-cloak class="space-y-6">
+            <input type="hidden" name="notifications_settings" value="1">
+
+            <!-- Banner Explicativo -->
+            <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#5865F2] to-[#0088CC] p-0.5 shadow-lg shadow-[#5865F2]/20 flex-shrink-0">
+                        <div class="w-full h-full bg-[#181410] rounded-[10px] flex items-center justify-center text-[#5865F2]">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                            <span>Automatización &amp; Notificaciones en Tiempo Real</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#5865F2]/20 text-[#5865F2] border border-[#5865F2]/30">BOTS &amp; WEBHOOKS</span>
+                        </h2>
+                        <p class="text-xs text-[#8C847A] mt-0.5">Recibe alertas automáticas en tus canales de Telegram y servidores de Discord cada vez que se publique una app, salga un update o un usuario reporte un enlace caído.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. CREDENCIALES DEL BOT & CANAL OFICIAL -->
+            <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#241F1A]">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-[#0088CC]/20 border border-[#0088CC]/30 flex items-center justify-center text-[#0088CC] flex-shrink-0 shadow-md shadow-[#0088CC]/20">
+                            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.195 1.006.128.832.969z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white tracking-wide uppercase">Credenciales del Bot &amp; Canal Oficial</h3>
+                            <p class="text-xs text-[#8C847A] mt-0.5">Conecta tu Bot de Telegram para publicar automáticamente novedades y alimentar la comunidad.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <button type="button"
+                                @click="testTelegramConnection()"
+                                :disabled="testingTelegram"
+                                class="px-4 py-2 rounded-xl bg-[#0088CC]/15 hover:bg-[#0088CC]/25 text-[#0088CC] border border-[#0088CC]/40 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 shadow-sm">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.195 1.006.128.832.969z"/>
+                            </svg>
+                            <span x-show="!testingTelegram">Probar Conexión con Telegram</span>
+                            <span x-show="testingTelegram">Probando conexión...</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Token BotFather -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-bold text-[#A8A199] tracking-wide flex items-center gap-1.5">
+                                <span>🔑 Token del Bot de Telegram (BotFather)</span>
+                            </label>
+                            <a href="https://t.me/BotFather" target="_blank" class="text-xs text-[#0088CC] hover:underline flex items-center gap-1">
+                                <span>Crear bot con @BotFather</span>
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                            </a>
+                        </div>
+                        <div class="relative">
+                            <input :type="showTelegramToken ? 'text' : 'password'"
+                                   name="telegram_bot_token"
+                                   x-model="telegramBotToken"
+                                   placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#0088CC] rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none transition-colors">
+                            <button type="button" @click="showTelegramToken = !showTelegramToken"
+                                    class="absolute right-3 top-2.5 text-[#736B63] hover:text-white text-xs cursor-pointer"
+                                    x-text="showTelegramToken ? 'Ocultar' : 'Mostrar'"></button>
+                        </div>
+                        <p class="text-[11px] text-[#736B63] mt-1.5">Token privado que te entrega @BotFather tras crear el bot. Nunca lo compartas.</p>
+                    </div>
+
+                    <!-- 2 Cols: ID Canal & Enlace Público -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] tracking-wide mb-2 flex items-center gap-1.5">
+                                <span># ID o Username del Canal de Publicación</span>
+                            </label>
+                            <input type="text"
+                                   name="telegram_channel_id"
+                                   x-model="telegramChannelId"
+                                   placeholder="@micanal o -1001234567890"
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#0088CC] rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none transition-colors">
+                            <p class="text-[11px] text-[#736B63] mt-1.5">Username público del canal (ej: @micanal) o su ID numérico. El bot debe ser <strong>Administrador</strong> del canal.</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] tracking-wide mb-2 flex items-center gap-1.5">
+                                <span>🔗 Enlace Público del Canal (Para Botones en la Web)</span>
+                            </label>
+                            <input type="url"
+                                   name="telegram_channel_url"
+                                   x-model="telegramChannelUrl"
+                                   placeholder="https://t.me/micanal"
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#0088CC] rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none transition-colors">
+                            <p class="text-[11px] text-[#736B63] mt-1.5">Enlace al que se redirige a los visitantes al hacer clic en el botón de Telegram en la web.</p>
+                        </div>
+                    </div>
+
+                    <!-- Tooltip y Botón Flotante -->
+                    <div>
+                        <label class="block text-xs font-bold text-[#A8A199] tracking-wide mb-2 flex items-center gap-1.5">
+                            <span>T Texto / Tooltip del Botón en Ficha de App / Botón Flotante</span>
+                        </label>
+                        <input type="text"
+                               name="telegram_button_tooltip"
+                               x-model="telegramButtonTooltip"
+                               placeholder="¿Problemas con la descarga o buscas otra app? Únete a nuestro Telegram"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#0088CC] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-colors">
+                    </div>
+
+                    <!-- Toggle Botón Flotante Web & Notificaciones -->
+                    <div class="pt-3 border-t border-[#241F1A] grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-[#100D0B] border border-[#241F1A]">
+                            <div>
+                                <span class="text-xs font-bold text-white block">Botón Flotante en la Web</span>
+                                <span class="text-[10px] text-[#8C847A] block">Muestra burbuja en la esquina para unirse.</span>
+                            </div>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="telegram_floating_button_enabled" value="1" x-model="telegramFloatingButtonEnabled"
+                                       class="w-4 h-4 rounded text-[#0088CC] focus:ring-[#0088CC] bg-[#12100E] border-[#382E24]">
+                                <span class="text-xs font-bold" :class="telegramFloatingButtonEnabled ? 'text-[#0088CC]' : 'text-[#736B63]'" x-text="telegramFloatingButtonEnabled ? 'Activo' : 'Oculto'"></span>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-[#100D0B] border border-[#241F1A]">
+                            <div>
+                                <span class="text-xs font-bold text-white block">Notificaciones Automáticas</span>
+                                <span class="text-[10px] text-[#8C847A] block">Activa el canal para avisos de apps.</span>
+                            </div>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="telegram_enabled" value="1" x-model="telegramEnabled"
+                                       class="w-4 h-4 rounded text-[#0088CC] focus:ring-[#0088CC] bg-[#12100E] border-[#382E24]">
+                                <span class="text-xs font-bold" :class="telegramEnabled ? 'text-[#0088CC]' : 'text-[#736B63]'" x-text="telegramEnabled ? 'Activo' : 'Inactivo'"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Feedback Test Telegram -->
+                    <template x-if="testTelegramResult">
+                        <div class="p-4 rounded-xl text-xs font-medium border"
+                             :class="testTelegramResult.success ? 'bg-success/15 border-success/30 text-success' : 'bg-danger/15 border-danger/30 text-danger'">
+                            <span x-text="testTelegramResult.message"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 2. PUBLICACIÓN AUTOMÁTICA & PLANTILLA -->
+            <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl space-y-6">
+                <!-- Header con Switch Piloto Automático -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#241F1A]">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 flex-shrink-0 shadow-md shadow-amber-500/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white tracking-wide uppercase">Publicación Automática &amp; Plantilla</h3>
+                            <p class="text-xs text-[#8C847A] mt-0.5">Disparador dosificado en segundo plano (1 app / minuto) para mantener el canal activo sin saturarlo.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="telegram_auto_pilot" value="1"
+                                   x-model="telegramAutoPilot"
+                                   @change="toggleTelegramAutoPilotSwitch()"
+                                   class="sr-only peer">
+                            <div class="w-11 h-6 bg-[#2B241C] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0088CC]"></div>
+                            <span class="ml-2.5 text-xs font-bold" :class="telegramAutoPilot ? 'text-[#0088CC]' : 'text-[#736B63]'" x-text="telegramAutoPilot ? 'Piloto Automático Activo' : 'Piloto Automático Inactivo'"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="p-4 rounded-xl bg-[#100D0B] border border-[#241F1A] flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-3 sm:gap-6 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full" :class="telegramAutoPilot ? 'bg-emerald-500 animate-pulse' : 'bg-[#736B63]'"></span>
+                            <span class="text-[#8C847A]">Frecuencia Cron:</span>
+                            <span class="font-bold text-white" x-text="telegramAutoPilot ? 'Cada 1 min (Activo)' : 'En pausa'"></span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[#8C847A]">Enviados hoy:</span>
+                            <span class="px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                <span x-text="telegramStats.sent_today">0</span> / <span x-text="telegramStats.daily_limit ? telegramStats.daily_limit : '∞'">20</span>
+                            </span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[#8C847A]">En cola pendientes:</span>
+                            <span class="px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-[#0088CC]/15 text-[#0088CC] border border-[#0088CC]/30" x-text="telegramStats.pending_count">0</span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[#8C847A]">Total histórico:</span>
+                            <span class="font-bold text-white font-mono" x-text="telegramStats.total_sent">0</span>
+                        </div>
+                    </div>
+
+                    <button type="button"
+                            @click="dispatchTelegramOneNow()"
+                            :disabled="dispatchingTelegram"
+                            class="px-3.5 py-1.5 rounded-xl bg-[#0088CC] hover:bg-[#0077B5] text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 shadow-md shadow-[#0088CC]/30">
+                        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                        <span x-show="!dispatchingTelegram">Despachar 1 Ahora</span>
+                        <span x-show="dispatchingTelegram">Despachando...</span>
+                    </button>
+                </div>
+
+                <!-- Feedback Despacho Manual -->
+                <template x-if="dispatchTelegramResult">
+                    <div class="p-3 rounded-xl text-xs font-medium border"
+                         :class="dispatchTelegramResult.success ? 'bg-success/15 border-success/30 text-success' : 'bg-danger/15 border-danger/30 text-danger'">
+                        <span x-text="dispatchTelegramResult.message"></span>
+                    </div>
+                </template>
+
+                <!-- Límite Diario -->
+                <div class="p-4 rounded-xl bg-[#100D0B] border border-[#241F1A] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>⏱️ Límite Máximo Diario (Tope de Envíos al Día)</span>
+                        </label>
+                        <p class="text-[11px] text-[#8C847A] mt-0.5">Controla cuántas apps publicar como máximo en Telegram cada día. Ingresa 0 para desactivar el límite y enviar todos los pendientes.</p>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="number"
+                               name="telegram_daily_limit"
+                               x-model.number="telegramDailyLimit"
+                               min="0"
+                               max="500"
+                               class="w-24 bg-[#14110E] border border-[#2B241C] focus:border-[#0088CC] rounded-xl px-3 py-1.5 text-center text-xs font-mono font-bold text-white focus:outline-none">
+                        <span class="text-xs text-[#8C847A] font-medium">apps / día</span>
+                    </div>
+                </div>
+
+                <!-- Editor de Plantilla -->
+                <div>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                        <label class="block text-xs font-bold text-[#A8A199] tracking-wide">
+                            Plantilla del Mensaje de Telegram:
+                        </label>
+                        <span class="text-[11px] text-[#736B63]">Soporta formato HTML (&lt;b&gt;, &lt;i&gt;, &lt;code&gt;, &lt;a&gt;)</span>
+                    </div>
+
+                    <div class="space-y-2">
+                        <!-- Botones de inserción de variables -->
+                        <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+                            <span class="text-xs text-[#8C847A] mr-1">Insertar variables:</span>
+                            <button type="button" @click="insertTelegramTag('{title}')" class="px-2 py-0.5 rounded bg-[#1B1713] hover:bg-[#0088CC]/20 text-[#0088CC] border border-[#2B241C] hover:border-[#0088CC]/40 font-mono transition-colors cursor-pointer">{title}</button>
+                            <button type="button" @click="insertTelegramTag('{category}')" class="px-2 py-0.5 rounded bg-[#1B1713] hover:bg-[#0088CC]/20 text-[#0088CC] border border-[#2B241C] hover:border-[#0088CC]/40 font-mono transition-colors cursor-pointer">{category}</button>
+                            <button type="button" @click="insertTelegramTag('{version}')" class="px-2 py-0.5 rounded bg-[#1B1713] hover:bg-[#0088CC]/20 text-[#0088CC] border border-[#2B241C] hover:border-[#0088CC]/40 font-mono transition-colors cursor-pointer">{version}</button>
+                            <button type="button" @click="insertTelegramTag('{size}')" class="px-2 py-0.5 rounded bg-[#1B1713] hover:bg-[#0088CC]/20 text-[#0088CC] border border-[#2B241C] hover:border-[#0088CC]/40 font-mono transition-colors cursor-pointer">{size}</button>
+                            <button type="button" @click="insertTelegramTag('{type}')" class="px-2 py-0.5 rounded bg-[#1B1713] hover:bg-[#0088CC]/20 text-[#0088CC] border border-[#2B241C] hover:border-[#0088CC]/40 font-mono transition-colors cursor-pointer">{type}</button>
+                            <button type="button" @click="insertTelegramTag('{url}')" class="px-2 py-0.5 rounded bg-[#1B1713] hover:bg-[#0088CC]/20 text-[#0088CC] border border-[#2B241C] hover:border-[#0088CC]/40 font-mono transition-colors cursor-pointer">{url}</button>
+                            <button type="button" @click="insertTelegramTag('{description}')" class="px-2 py-0.5 rounded bg-[#1B1713] hover:bg-[#0088CC]/20 text-[#0088CC] border border-[#2B241C] hover:border-[#0088CC]/40 font-mono transition-colors cursor-pointer">{description}</button>
+                            <button type="button" @click="insertTelegramTag('{image}')" class="px-2 py-0.5 rounded bg-[#1B1713] hover:bg-[#0088CC]/20 text-[#0088CC] border border-[#2B241C] hover:border-[#0088CC]/40 font-mono transition-colors cursor-pointer">{image}</button>
+                        </div>
+
+                        <textarea id="telegram_template_textarea"
+                                  name="telegram_template"
+                                  rows="7"
+                                  class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#0088CC] rounded-xl p-4 text-xs font-mono text-white focus:outline-none transition-colors leading-relaxed"
+                                  placeholder="Escribe la plantilla del mensaje...">{!! $settings['telegram_template'] ?? "🚀 <b>¡NUEVA DESCARGA PUBLICADA!</b>\n\n📱 <b>Título:</b> {title}\n📂 <b>Categoría:</b> {category}\n🏷️ <b>Versión:</b> {version}\n💾 <b>Tamaño:</b> {size}\n⚡ <b>Tipo:</b> {type}\n\n🔗 <a href=\"{url}\">Descargar en PichoDescargas</a>" !!}</textarea>
+                    </div>
+                </div>
+
+                <!-- Botón Interactivo de Telegram (Inline Button) -->
+                <div>
+                    <label class="block text-xs font-bold text-[#A8A199] tracking-wide mb-1.5">
+                        Texto del Botón Directo en Telegram (Inline Keyboard Button):
+                    </label>
+                    <input type="text"
+                           name="telegram_post_button_text"
+                           value="{{ $settings['telegram_post_button_text'] ?? '📥 DESCARGAR AHORA' }}"
+                           placeholder="Ej: 📥 DESCARGAR AHORA o ⚡ DESCARGAR EN PICHODESCARGAS"
+                           class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#0088CC] rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none transition-colors">
+                    <p class="text-[11px] text-[#736B63] mt-1">Este botón azul interactivo aparecerá debajo de cada publicación en el canal de Telegram con enlace directo a la ficha de descarga.</p>
+                </div>
+            </div>
+
+            <!-- DISCORD & WEBHOOKS (Fila Inferior) -->
+            <div class="grid grid-cols-1 gap-6">
+                <!-- 2. DISCORD WEBHOOK CARD -->
+                <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl space-y-5">
+                    <div class="flex items-center justify-between pb-3 border-b border-[#241F1A]">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-[#5865F2]/20 border border-[#5865F2]/30 flex items-center justify-center text-[#5865F2]">
+                                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white">Servidor de Discord (Webhook)</h3>
+                                <p class="text-[11px] text-[#8C847A]">Embeds con miniaturas, categoría y botón directo.</p>
+                            </div>
+                        </div>
+
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="discord_enabled" value="1" x-model="discordEnabled"
+                                   class="w-4 h-4 rounded text-[#5865F2] focus:ring-[#5865F2] bg-[#12100E] border-[#382E24]">
+                            <span class="text-xs font-bold" :class="discordEnabled ? 'text-[#5865F2]' : 'text-[#736B63]'" x-text="discordEnabled ? 'Activo' : 'Inactivo'"></span>
+                        </label>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Discord Webhook URL</label>
+                            <input type="url"
+                                   name="discord_webhook_url"
+                                   x-model="discordWebhookUrl"
+                                   placeholder="https://discord.com/api/webhooks/123456789/ABCdefGhIJKlmNoP..."
+                                   class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#5865F2] rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none transition-colors">
+                            <p class="text-[10px] text-[#736B63] mt-1">Crea un Webhook en Discord: <em>Canal &gt; Editar canal &gt; Integraciones &gt; Webhooks</em>.</p>
+                        </div>
+
+                        <div class="pt-2 flex items-center justify-between">
+                            <button type="button"
+                                    @click="testDiscordConnection()"
+                                    :disabled="testingDiscord"
+                                    class="px-4 py-2 rounded-xl bg-[#5865F2]/15 hover:bg-[#5865F2]/25 text-[#5865F2] border border-[#5865F2]/30 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50">
+                                <span x-show="!testingDiscord">⚡ Probar Discord</span>
+                                <span x-show="testingDiscord">Enviando webhook...</span>
+                            </button>
+                        </div>
+
+                        <!-- Feedback Test Discord -->
+                        <template x-if="testDiscordResult">
+                            <div class="p-3 rounded-xl text-xs font-medium border"
+                                 :class="testDiscordResult.success ? 'bg-success/15 border-success/30 text-success' : 'bg-danger/15 border-danger/30 text-danger'">
+                                <span x-text="testDiscordResult.message"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. SELECCIÓN DE EVENTOS A NOTIFICAR -->
+            <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl space-y-4">
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                    Eventos que Disparan Notificaciones
+                </h3>
+                <p class="text-xs text-[#8C847A]">Elige qué sucesos deben enviar alertas automáticas a tus canales activos.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                    <!-- Event 1: Nuevo Programa -->
+                    <label class="p-4 rounded-xl bg-[#171411] border border-[#2B241C] hover:border-primary/40 transition-colors flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" name="notify_on_new_app" value="1" x-model="notifyNewApp"
+                               class="w-4 h-4 rounded text-primary focus:ring-primary bg-[#12100E] border-[#382E24] mt-0.5">
+                        <div>
+                            <span class="text-xs font-bold text-white block">🚀 Nuevos Lanzamientos</span>
+                            <span class="text-[11px] text-[#8C847A] leading-relaxed">Envía ficha con imagen, categoría y enlaces cuando se publica un programa nuevo.</span>
+                        </div>
+                    </label>
+
+                    <!-- Event 2: Actualización de Versión -->
+                    <label class="p-4 rounded-xl bg-[#171411] border border-[#2B241C] hover:border-primary/40 transition-colors flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" name="notify_on_update" value="1" x-model="notifyUpdate"
+                               class="w-4 h-4 rounded text-primary focus:ring-primary bg-[#12100E] border-[#382E24] mt-0.5">
+                        <div>
+                            <span class="text-xs font-bold text-white block">🔄 Actualizaciones de Versión</span>
+                            <span class="text-[11px] text-[#8C847A] leading-relaxed">Notifica cuando una app existente sube de versión (ej. de v2.1 a v2.2).</span>
+                        </div>
+                    </label>
+
+                    <!-- Event 3: Enlace Caído Reportado -->
+                    <label class="p-4 rounded-xl bg-[#171411] border border-danger/30 hover:border-danger/60 transition-colors flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" name="notify_on_broken_link" value="1" x-model="notifyBrokenLink"
+                               class="w-4 h-4 rounded text-danger focus:ring-danger bg-[#12100E] border-[#382E24] mt-0.5">
+                        <div>
+                            <span class="text-xs font-bold text-white block flex items-center gap-1.5">
+                                <span>⚠️ Enlaces Caídos</span>
+                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-danger/20 text-danger">URGENTE</span>
+                            </span>
+                            <span class="text-[11px] text-[#8C847A] leading-relaxed">Alerta instantánea al admin cuando un visitante reporta que un enlace no descarga.</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Botón Fake de Descarga VIP -->
+        <div x-show="tab === 'vip'" x-cloak class="space-y-6">
+            @include('partials.vip-button-styles')
+            <input type="hidden" name="vip_download_settings" value="1">
+
+            <!-- Banner Card -->
+            <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 p-0.5 shadow-lg shadow-amber-500/25 flex-shrink-0 flex items-center justify-center animate-pulse">
+                        <div class="w-full h-full bg-[#18130E] rounded-[14px] flex items-center justify-center">
+                            <svg class="w-6 h-6 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-bold text-white tracking-tight">Botón de Descarga VIP (Monetización / Afiliados)</h2>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">ALTO CTR</span>
+                        </div>
+                        <p class="text-xs text-[#8C847A] mt-0.5">
+                            Inserta un botón premium con animación justo encima del contador de descargas para dirigir tráfico a tu enlace de afiliado, acortador o red de publicidad.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Toggle Switch -->
+                <label class="relative inline-flex items-center cursor-pointer select-none flex-shrink-0">
+                    <input type="checkbox" name="vip_download_enabled" value="1"
+                           x-model="vipEnabled" class="sr-only peer">
+                    <div class="w-12 h-6 bg-[#2B241C] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#3A3025] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500 shadow-inner"></div>
+                    <span class="ml-3 text-xs font-bold" :class="vipEnabled ? 'text-amber-400' : 'text-[#8C847A]'" x-text="vipEnabled ? 'BOTÓN ACTIVO' : 'PAUSADO'"></span>
+                </label>
+            </div>
+
+            <!-- Configuration Fields Card -->
+            <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl space-y-6">
+                <div class="border-b border-[#241E18] pb-4">
+                    <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                        <span>🔗 Enlace de Destino y Textos</span>
+                    </h3>
+                    <p class="text-xs text-[#8C847A]">Configura la URL a la que serán redirigidos los usuarios al presionar el botón.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- URL de destino -->
+                    <div class="col-span-1 md:col-span-2 space-y-2">
+                        <label class="block text-xs font-bold text-white flex items-center justify-between">
+                            <span>Enlace de Destino (URL) <span class="text-danger">*</span></span>
+                            <span class="text-[11px] text-amber-400 font-mono">Destino del clic</span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8C847A]">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                </svg>
+                            </div>
+                            <input type="url" name="vip_download_url" x-model="vipUrl"
+                                   placeholder="https://tu-acortador-o-afiliado.com/oferta-vip"
+                                   class="w-full pl-10 pr-4 py-2.5 bg-[#1B1713] border border-[#2F261E] focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 rounded-xl text-xs text-white placeholder-[#5A5248] transition-all font-mono">
+                        </div>
+                        <span class="text-[11px] text-[#8C847A] block">Puedes colocar cualquier link: Acortador, enlace directo de descarga externa, oferta CPA o red de afiliados.</span>
+                    </div>
+
+                    <!-- Texto Principal -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-white">
+                            Texto del Botón (Título)
+                        </label>
+                        <input type="text" name="vip_download_text" x-model="vipText"
+                               placeholder="Download Speed VIP"
+                               class="w-full px-4 py-2.5 bg-[#1B1713] border border-[#2F261E] focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 rounded-xl text-xs text-white placeholder-[#5A5248] transition-all">
+                        <span class="text-[11px] text-[#8C847A] block">Ejemplo: "Download Speed VIP", "⚡ Descarga Rápida VIP", "Fast VIP Download".</span>
+                    </div>
+
+                    <!-- Badge Destacado -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-white">
+                            Badge Destacado (Pill)
+                        </label>
+                        <input type="text" name="vip_download_badge" x-model="vipBadge"
+                               placeholder="ULTRA FAST"
+                               class="w-full px-4 py-2.5 bg-[#1B1713] border border-[#2F261E] focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 rounded-xl text-xs text-white placeholder-[#5A5248] transition-all font-mono uppercase">
+                        <span class="text-[11px] text-[#8C847A] block">Ejemplo: "ULTRA FAST", "MAX SPEED", "NO WAIT", "PREMIUM".</span>
+                    </div>
+
+                    <!-- Subtexto -->
+                    <div class="col-span-1 md:col-span-2 space-y-2">
+                        <label class="block text-xs font-bold text-white">
+                            Subtítulo Explicativo
+                        </label>
+                        <input type="text" name="vip_download_subtext" x-model="vipSubtext"
+                               placeholder="Direct High-Speed Server • Max Priority • 0s Wait"
+                               class="w-full px-4 py-2.5 bg-[#1B1713] border border-[#2F261E] focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 rounded-xl text-xs text-white placeholder-[#5A5248] transition-all">
+                        <span class="text-[11px] text-[#8C847A] block">Breve frase que refuerza la ventaja de usar el servidor de alta velocidad.</span>
+                    </div>
+
+                    <!-- Abrir en pestaña nueva -->
+                    <div class="col-span-1 md:col-span-2 pt-2">
+                        <label class="flex items-center gap-3 p-3.5 rounded-xl bg-[#1B1713] border border-[#2F261E] hover:border-[#3E342A] transition-all cursor-pointer">
+                            <input type="checkbox" name="vip_download_open_new_tab" value="1"
+                                   x-model="vipOpenNewTab"
+                                   class="w-4 h-4 rounded text-amber-500 bg-[#251F19] border-[#3E342A] focus:ring-0 focus:ring-offset-0">
+                            <div>
+                                <span class="text-xs font-bold text-white block">Abrir enlace en una nueva pestaña (target="_blank")</span>
+                                <span class="text-[11px] text-[#8C847A]">Recomendado: El usuario no abandona la descarga original en tu portal mientras se abre el enlace.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Preview Card -->
+            <div class="bg-[#14110E] border border-[#2B241C] p-6 rounded-2xl shadow-xl space-y-4">
+                <div class="flex items-center justify-between border-b border-[#241E18] pb-3">
+                    <span class="text-xs font-bold text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                        <span>Vista Previa en Vivo (Así se verá en la página de descarga)</span>
+                    </span>
+                    <span class="text-[11px] font-mono text-amber-400" x-text="vipEnabled ? 'Estado: Visible para usuarios' : 'Estado: Oculto (Activa el switch para mostrarlo)'"></span>
+                </div>
+
+                <!-- Preview Box Container -->
+                <div class="p-6 bg-[#0E0C0A] rounded-2xl border border-[#231C16]">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="vip-download-card">
+                            <div class="vip-download-card-inner">
+                                <div class="vip-shimmer-ray"></div>
+
+                                <div class="vip-content-left">
+                                    <div class="vip-icon-wrapper">
+                                        <div class="vip-icon-inner">
+                                            <svg fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="vip-title-row">
+                                            <span class="vip-title-text" x-text="vipText || 'Download Speed VIP'"></span>
+                                            <span class="vip-badge-pill" x-text="vipBadge || 'ULTRA FAST'"></span>
+                                        </div>
+                                        <div class="vip-subtext" x-text="vipSubtext || 'Direct High-Speed Server • Max Priority • 0s Wait'"></div>
+                                    </div>
+                                </div>
+                                <div class="vip-action-cta">
+                                    <span>Download VIP</span>
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sticky Save Bar -->
+        <div class="p-4 bg-[#14110E] border border-[#2B241C] rounded-2xl flex items-center justify-between shadow-xl">
+            <span class="text-xs text-[#8C847A] flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                Los cambios se reflejarán instantáneamente en todo el portal web.
+            </span>
+            <button type="submit"
+                    class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-[#EA580C] hover:from-primary-hover hover:to-[#F97316] text-white text-xs font-bold shadow-lg shadow-primary/25 transition-all flex items-center gap-2 cursor-pointer">
+                <span>Guardar Cambios</span>
+            </button>
+        </div>
+    </form>
+</div>
+@endsection
