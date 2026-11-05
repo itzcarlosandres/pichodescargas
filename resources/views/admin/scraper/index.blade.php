@@ -1368,26 +1368,51 @@
                         $qDdl = (int) ceil($curLimit / 3);
                         $qTor = (int) ceil(($curLimit - $qDdl) / 2);
                         $qCyber = max(0, $curLimit - $qDdl - $qTor);
+                        $qProg = (int) ceil($qCyber / 3);
+                        $qGame = (int) ceil(($qCyber - $qProg) / 2);
+                        $qApk = max(0, $qCyber - $qProg - $qGame);
                     @endphp
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider">Límite por Ejecución</label>
-                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">REPARTO 3-WAY</span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">REPARTO 5 CATEGORÍAS</span>
                         </div>
-                        <input type="number" name="cron_limit" min="1" max="50" value="{{ $stats['cron_limit'] ?? 20 }}"
+                        <input type="number" name="cron_limit" min="1" max="50"
+                               x-model.number="cronLimit"
+                               value="{{ $stats['cron_limit'] ?? 20 }}"
                                class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors">
-                        <div class="mt-2 p-2.5 rounded-lg bg-[#0E0C0A] border border-[#262019] text-[10.5px] font-mono space-y-1">
+                        <div class="mt-2 p-2.5 rounded-lg bg-[#0E0C0A] border border-[#262019] text-[10.5px] font-mono space-y-1.5">
                             <div class="flex items-center justify-between text-[#A8A199]">
-                                <span>Distribución ({{ $curLimit }} apps):</span>
+                                <span>Distribución (<span x-text="cronLimit">{{ $curLimit }}</span> apps):</span>
                                 <span class="text-emerald-400 font-bold">Reasignación Inteligente</span>
                             </div>
                             <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#1F1914] text-[10px]">
-                                <span class="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 font-semibold">{{ $qDdl }} DDL Mac</span>
-                                <span class="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30 font-semibold">{{ $qTor }} Torrent Mac</span>
-                                <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">{{ $qCyber }} PC &amp; Android</span>
+                                <span class="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 font-semibold flex items-center gap-1">
+                                    <span>🍏</span>
+                                    <span x-text="`${quotaDdl} DDL Mac`">{{ $qDdl }} DDL Mac</span>
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30 font-semibold flex items-center gap-1">
+                                    <span>🧲</span>
+                                    <span x-text="`${quotaTor} Torrent Mac`">{{ $qTor }} Torrent Mac</span>
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-semibold flex items-center gap-1">
+                                    <span>💻</span>
+                                    <span x-text="`${quotaProg} Programas PC`">{{ $qProg }} Programas PC</span>
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold flex items-center gap-1">
+                                    <span>🎮</span>
+                                    <span x-text="`${quotaGame} Juegos PC`">{{ $qGame }} Juegos PC</span>
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1">
+                                    <span>📱</span>
+                                    <span x-text="`${quotaApk} Apps Android`">{{ $qApk }} Apps Android</span>
+                                </span>
+                            </div>
+                            <div class="pt-1 text-[9.5px] text-[#8C847A] flex items-center justify-between border-t border-[#1A1510]">
+                                <span>CyberMania: <strong class="text-white" x-text="quotaCyber">{{ $qCyber }}</strong> apps (<span x-text="`${quotaProg} prog + ${quotaGame} juegos + ${quotaApk} APKs`">{{ $qProg }} prog + {{ $qGame }} juegos + {{ $qApk }} APKs</span>)</span>
                             </div>
                         </div>
-                        <p class="text-[10px] text-[#736B63] mt-1.5">Si algún scraper no tiene suficientes novedades en portada, sus cupos libres se transfieren a los otros.</p>
+                        <p class="text-[10px] text-[#736B63] mt-1.5">Si algún scraper o categoría no tiene suficientes novedades en portada, sus cupos libres se transfieren automáticamente a los otros.</p>
                     </div>
 
                     <div>
@@ -1543,6 +1568,25 @@
 function scraperApp() {
     return {
     tab: (new URLSearchParams(window.location.search).get('tab')) || 'search',
+    cronLimit: {{ (int) ($stats['cron_limit'] ?? 20) }},
+    get quotaDdl() {
+        return Math.ceil(this.cronLimit / 3);
+    },
+    get quotaTor() {
+        return Math.ceil((this.cronLimit - this.quotaDdl) / 2);
+    },
+    get quotaCyber() {
+        return Math.max(0, this.cronLimit - this.quotaDdl - this.quotaTor);
+    },
+    get quotaProg() {
+        return Math.ceil(this.quotaCyber / 3);
+    },
+    get quotaGame() {
+        return Math.ceil((this.quotaCyber - this.quotaProg) / 2);
+    },
+    get quotaApk() {
+        return Math.max(0, this.quotaCyber - this.quotaProg - this.quotaGame);
+    },
     dripMode: {{ ($stats['drip_mode'] ?? false) ? 'true' : 'false' }},
     togglingDrip: false,
     gridCols: 6,
