@@ -156,11 +156,30 @@ class CybermaniaImporter
             return null;
         }
 
-        // 1. Resolve Target Category in PichoDescargas
-        $category = Category::where('slug', $appData['category_slug'])->first();
+        // 1. Resolve Target Category in PichoDescargas (Strict mapping to programas, juegos-pc, or apps-android)
+        $targetSlug = $appData['category_slug'] ?? 'programas';
+        $category = Category::where('slug', $targetSlug)->first();
         if (! $category) {
-            // Fallback to Programs category
-            $category = Category::where('slug', 'programas')->first() ?? Category::first();
+            $catNames = [
+                'programas' => 'Programas',
+                'juegos-pc' => 'Juegos PC',
+                'apps-android' => 'Apps Android',
+            ];
+            $category = Category::firstOrCreate(
+                ['slug' => $targetSlug],
+                [
+                    'name' => $catNames[$targetSlug] ?? ($appData['category_name'] ?? ucfirst($targetSlug)),
+                    'description' => "Descargas para {$targetSlug}",
+                    'icon' => $targetSlug,
+                    'is_active' => true,
+                    'sort_order' => match ($targetSlug) {
+                        'programas' => 1,
+                        'apps-android' => 3,
+                        'juegos-pc' => 4,
+                        default => 5,
+                    },
+                ]
+            );
         }
 
         // 2. Resolve Existing Application via 4-tier deduplication

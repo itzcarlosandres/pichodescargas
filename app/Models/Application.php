@@ -315,28 +315,61 @@ class Application extends Model
     public static function releaseDripBatch(int $limit = 10): array
     {
         $limit = max(1, min(100, $limit));
-        $targetHalf = (int) ceil($limit / 2);
 
-        // 1. Up to half torrent drafts (oldest first)
+        $pcAndroidCategoryIds = Category::whereIn('slug', ['programas', 'juegos-pc', 'apps-android'])->pluck('id')->all();
+        $macCategoryIds = Category::whereIn('slug', ['mac-apps'])->pluck('id')->all();
+
+        // Balanced 3-way split quotas (e.g. 20 -> 7 Torrent, 7 Mac DDL, 6 PC/Android)
+        $quota1 = (int) ceil($limit / 3);
+        $quota2 = (int) ceil(($limit - $quota1) / 2);
+        $quota3 = max(1, $limit - $quota1 - $quota2);
+
+        // 1. Up to quota1 Torrent drafts (oldest first)
         $torrentDrafts = static::where('published', false)
             ->where('has_torrent', true)
             ->orderBy('id', 'asc')
-            ->limit($targetHalf)
+            ->limit($quota1)
             ->get();
 
         $selectedIds = $torrentDrafts->pluck('id')->all();
 
-        // 2. Up to half DDL drafts (oldest first)
-        $ddlDrafts = static::where('published', false)
+        // 2. Up to quota2 Mac DDL drafts (oldest first)
+        $ddlQuery = static::where('published', false)
             ->where('has_torrent', false)
-            ->whereNotIn('id', $selectedIds)
-            ->orderBy('id', 'asc')
-            ->limit($targetHalf)
-            ->get();
+            ->whereNotIn('id', $selectedIds);
+
+        if (! empty($macCategoryIds)) {
+            $ddlDrafts = (clone $ddlQuery)->whereIn('category_id', $macCategoryIds)
+                ->orderBy('id', 'asc')
+                ->limit($quota2)
+                ->get();
+            if ($ddlDrafts->count() < $quota2) {
+                $additionalDdl = $ddlQuery->whereNotIn('id', array_merge($selectedIds, $ddlDrafts->pluck('id')->all()))
+                    ->orderBy('id', 'asc')
+                    ->limit($quota2 - $ddlDrafts->count())
+                    ->get();
+                $ddlDrafts = $ddlDrafts->concat($additionalDdl);
+            }
+        } else {
+            $ddlDrafts = $ddlQuery->orderBy('id', 'asc')->limit($quota2)->get();
+        }
 
         $selectedIds = array_merge($selectedIds, $ddlDrafts->pluck('id')->all());
 
-        // 3. Fallback: If not reached $limit, fill with oldest available drafts regardless of source
+        // 3. Up to quota3 PC & Android drafts (oldest first)
+        $pcAndroidDrafts = collect();
+        if (! empty($pcAndroidCategoryIds)) {
+            $pcAndroidDrafts = static::where('published', false)
+                ->whereIn('category_id', $pcAndroidCategoryIds)
+                ->whereNotIn('id', $selectedIds)
+                ->orderBy('id', 'asc')
+                ->limit($quota3)
+                ->get();
+
+            $selectedIds = array_merge($selectedIds, $pcAndroidDrafts->pluck('id')->all());
+        }
+
+        // 4. Fallback: If not reached $limit, fill with any remaining oldest available drafts regardless of source
         $remainderNeeded = $limit - count($selectedIds);
         $fillDrafts = collect();
         if ($remainderNeeded > 0) {
@@ -347,7 +380,7 @@ class Application extends Model
                 ->get();
         }
 
-        $allDrafts = $torrentDrafts->concat($ddlDrafts)->concat($fillDrafts);
+        $allDrafts = $torrentDrafts->concat($ddlDrafts)->concat($pcAndroidDrafts)->concat($fillDrafts);
 
         if ($allDrafts->isNotEmpty()) {
             $now = now();
@@ -365,6 +398,7 @@ class Application extends Model
             'published_count' => $allDrafts->count(),
             'torrent_count' => $allDrafts->where('has_torrent', true)->count(),
             'ddl_count' => $allDrafts->where('has_torrent', false)->count(),
+            'pc_android_count' => $allDrafts->whereIn('category_id', $pcAndroidCategoryIds)->count(),
             'apps' => $allDrafts,
         ];
     }

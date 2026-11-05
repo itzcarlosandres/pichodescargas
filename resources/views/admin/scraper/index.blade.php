@@ -1363,11 +1363,31 @@
                         <p class="text-[10px] text-[#736B63] mt-1">Intervalo con el que revisa novedades.</p>
                     </div>
 
+                    @php
+                        $curLimit = (int) ($stats['cron_limit'] ?? 20);
+                        $qDdl = (int) ceil($curLimit / 3);
+                        $qTor = (int) ceil(($curLimit - $qDdl) / 2);
+                        $qCyber = max(0, $curLimit - $qDdl - $qTor);
+                    @endphp
                     <div>
-                        <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider mb-2">Límite por Ejecución</label>
-                        <input type="number" name="cron_limit" min="1" max="50" value="{{ $stats['cron_limit'] ?? 10 }}"
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider">Límite por Ejecución</label>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">REPARTO 3-WAY</span>
+                        </div>
+                        <input type="number" name="cron_limit" min="1" max="50" value="{{ $stats['cron_limit'] ?? 20 }}"
                                class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors">
-                        <p class="text-[10px] text-[#736B63] mt-1">Máximo de apps a publicar por tanda (ej. 10).</p>
+                        <div class="mt-2 p-2.5 rounded-lg bg-[#0E0C0A] border border-[#262019] text-[10.5px] font-mono space-y-1">
+                            <div class="flex items-center justify-between text-[#A8A199]">
+                                <span>Distribución ({{ $curLimit }} apps):</span>
+                                <span class="text-emerald-400 font-bold">Reasignación Inteligente</span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#1F1914] text-[10px]">
+                                <span class="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 font-semibold">{{ $qDdl }} DDL Mac</span>
+                                <span class="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30 font-semibold">{{ $qTor }} Torrent Mac</span>
+                                <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">{{ $qCyber }} PC &amp; Android</span>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-[#736B63] mt-1.5">Si algún scraper no tiene suficientes novedades en portada, sus cupos libres se transfieren a los otros.</p>
                     </div>
 
                     <div>

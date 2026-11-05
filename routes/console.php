@@ -12,7 +12,6 @@ use App\Services\Scraper\TorrentmacImporter;
 use App\Services\Telegram\TelegramBotService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -28,65 +27,108 @@ Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desa
         return 1;
     }
 
-    $limit = (int) Setting::get('scraper_cron_limit', 10);
-    $portionLimit = (int) ceil($limit / 3);
+    $limit = max(1, (int) Setting::get('scraper_cron_limit', 20));
     $dripMode = filter_var(Setting::get('scraper_drip_feed_mode', false), FILTER_VALIDATE_BOOLEAN);
 
-    // 1. Si se solicita rellenar borradores manualmente o la cola está seca en modo goteo
+    $torrentEnabled = filter_var(Setting::get('torrentmac_cron_enabled', true), FILTER_VALIDATE_BOOLEAN);
+    $cyberEnabled = filter_var(Setting::get('cybermania_cron_enabled', true), FILTER_VALIDATE_BOOLEAN);
+
+    // 1. Cálculo de cuotas equitativas para los 3 scrapers (ej. 20 -> DDL: 7, Torrent: 7, PC/Android: 6)
+    $activeScrapers = 1 + ($torrentEnabled ? 1 : 0) + ($cyberEnabled ? 1 : 0);
+    $ddlQuota = (int) ceil($limit / $activeScrapers);
+    $remainingAfterDdl = max(0, $limit - $ddlQuota);
+
+    if ($torrentEnabled && $cyberEnabled) {
+        $torrentQuota = (int) ceil($remainingAfterDdl / 2);
+        $cyberQuota = max(0, $remainingAfterDdl - $torrentQuota);
+    } elseif ($torrentEnabled) {
+        $torrentQuota = $remainingAfterDdl;
+        $cyberQuota = 0;
+    } elseif ($cyberEnabled) {
+        $torrentQuota = 0;
+        $cyberQuota = $remainingAfterDdl;
+    } else {
+        $ddlQuota = $limit;
+        $torrentQuota = 0;
+        $cyberQuota = 0;
+    }
+
+    $this->info("🎯 Límite Global: {$limit} programas. Cuotas asignadas -> DDL (HaxMac): {$ddlQuota}, Torrent (TorrentMac): {$torrentQuota}, PC/Android (CyberMania): {$cyberQuota}");
+
+    // 2. Si se solicita rellenar borradores manualmente o la cola está seca en modo goteo
     $requestedFill = (int) $this->option('fill-drafts');
     $currentDrafts = Application::where('published', false)->count();
     $fillNeeded = $requestedFill > 0 ? $requestedFill : ($dripMode && $currentDrafts < $limit ? $limit : 0);
 
     if ($fillNeeded > 0) {
-        $halfFill = (int) ceil($fillNeeded / 2);
+        $part = (int) ceil($fillNeeded / max(1, $activeScrapers));
         $this->info("Rellenando Cola Draft con {$fillNeeded} programas del catálogo histórico (página HaxMac: ".Setting::get('scraper_haxmac_backlog_page', 4).', TorrentMac: '.Setting::get('scraper_torrentmac_backlog_page', 4).')...');
-        $bHax = $haxmac->importBacklogBatch($halfFill, true, true);
-        $bTor = $torrentmac->importBacklogBatch($halfFill, true, true);
-        $this->info("✓ Cola Draft reabastecida: +{$bHax['imported']} DDL, +{$bTor['imported']} Torrent. Total en cola: ".Application::where('published', false)->count());
+        $bHax = $haxmac->importBacklogBatch($part, true, true);
+        $bTor = $torrentEnabled ? $torrentmac->importBacklogBatch($part, true, true) : ['imported' => 0];
+        $totalBacklog = ($bHax['imported'] ?? 0) + ($bTor['imported'] ?? 0);
+        $this->info("✓ Cola Draft reabastecida: +{$totalBacklog} borradores. Total en cola: ".Application::where('published', false)->count());
     }
 
-    // 2. Sincronización de novedades desde portadas
-    // 2a. HaxMac (DDL Mac)
-    $this->info("Iniciando sincronización DDL de portada (HaxMac, hasta {$portionLimit} apps)...");
-    $ddlResult = $haxmac->syncLatestUpdates(true, $portionLimit, 3);
+    $reallocatedPool = 0;
+
+    // 3. Sincronización de novedades desde portadas con reasignación inteligente
+    // 3a. HaxMac (macOS DDL -> categoría mac-apps)
+    $this->info("Iniciando sincronización DDL de portada (HaxMac, cuota: {$ddlQuota} apps a mac-apps)...");
+    $ddlResult = $haxmac->syncLatestUpdates(true, $ddlQuota, 3);
+    $ddlImported = (int) ($ddlResult['new_imported'] ?? 0);
+    if ($ddlImported < $ddlQuota) {
+        $reallocatedPool += ($ddlQuota - $ddlImported);
+    }
     Setting::set('scraper_last_sync', now()->format('Y-m-d H:i:s'), 'scraper');
-    $this->info("✓ DDL completado: {$ddlResult['new_imported']} nuevos, {$ddlResult['updated']} actualizados.");
+    $this->info("✓ DDL completado: {$ddlImported} nuevos, {$ddlResult['updated']} actualizados.");
 
-    // 2b. TorrentMac (Torrents Mac)
+    // 3b. TorrentMac (macOS Torrents -> categoría mac-apps)
     $torrentResult = ['new_imported' => 0, 'updated' => 0];
-    if (filter_var(Setting::get('torrentmac_cron_enabled', true), FILTER_VALIDATE_BOOLEAN)) {
-        $this->info("Iniciando sincronización Torrent de portada (TorrentMac, hasta {$portionLimit} apps)...");
-        $torrentResult = $torrentmac->syncLatestUpdates(1, true, $portionLimit, 3);
+    if ($torrentEnabled) {
+        $torrentTarget = $torrentQuota + $reallocatedPool;
+        $reallocatedPool = 0;
+        $this->info("Iniciando sincronización Torrent de portada (TorrentMac, cuota: {$torrentTarget} apps a mac-apps)...");
+        $torrentResult = $torrentmac->syncLatestUpdates(1, true, $torrentTarget, 3);
+        $torrentImported = (int) ($torrentResult['new_imported'] ?? 0);
+        if ($torrentImported < $torrentTarget) {
+            $reallocatedPool += ($torrentTarget - $torrentImported);
+        }
         Setting::set('torrentmac_last_sync', now()->format('Y-m-d H:i:s'), 'scraper');
-        $this->info("✓ Torrent completado: {$torrentResult['new_imported']} nuevos, {$torrentResult['updated']} actualizados.");
+        $this->info("✓ Torrent completado: {$torrentImported} nuevos, {$torrentResult['updated']} actualizados.");
     }
 
-    // 2c. CyberMania (PC Windows & Android APK)
+    // 3c. CyberMania (Windows PC & Android -> categorías programas, juegos-pc, apps-android)
     $cyberResult = ['imported' => 0, 'updated' => 0];
-    if (filter_var(Setting::get('cybermania_cron_enabled', true), FILTER_VALIDATE_BOOLEAN)) {
-        $this->info("Iniciando sincronización CyberMania (PC & APK, hasta {$portionLimit} apps)...");
-        $cyberResult = $cybermania->syncLatestUpdates(true, $portionLimit, 2, 'all');
+    if ($cyberEnabled) {
+        $cyberTarget = $cyberQuota + $reallocatedPool;
+        $reallocatedPool = 0;
+        $this->info("Iniciando sincronización CyberMania (PC & APK, cuota: {$cyberTarget} apps)...");
+        $cyberResult = $cybermania->syncLatestUpdates(true, $cyberTarget, 2, 'all');
+        $cyberImported = (int) ($cyberResult['imported'] ?? 0);
+        if ($cyberImported < $cyberTarget) {
+            $reallocatedPool += ($cyberTarget - $cyberImported);
+        }
         Setting::set('cybermania_last_sync', now()->format('Y-m-d H:i:s'), 'scraper');
-        $this->info("✓ CyberMania completado: {$cyberResult['imported']} nuevos, {$cyberResult['updated']} actualizados.");
+        $this->info("✓ CyberMania completado: {$cyberImported} nuevos, {$cyberResult['updated']} actualizados.");
     }
 
-    // 3. Si no hay modo goteo y no se alcanzaron novedades, rellenar el déficit directamente publicado
+    // 4. Si no hay modo goteo y no se alcanzaron novedades suficientes, rellenar el déficit desde el archivo
     if (! $dripMode) {
-        $totalNew = $ddlResult['new_imported'] + ($torrentResult['new_imported'] ?? 0) + ($cyberResult['imported'] ?? 0);
+        $totalNew = $ddlImported + ($torrentResult['new_imported'] ?? 0) + ($cyberResult['imported'] ?? 0);
         $deficit = $limit - $totalNew;
         if ($deficit > 0) {
             $halfDeficit = (int) ceil($deficit / 2);
-            $this->info("No hubo suficientes novedades ({$totalNew}/{$limit}). Extrayendo {$deficit} programas antiguos del catálogo histórico...");
+            $this->info("No hubo suficientes novedades en portada ({$totalNew}/{$limit}). Extrayendo {$deficit} programas antiguos de archivo para cumplir la meta...");
             $haxDirect = $haxmac->importBacklogBatch($halfDeficit, false, true);
-            $torDirect = $torrentmac->importBacklogBatch($halfDeficit, false, true);
+            $torDirect = $torrentEnabled ? $torrentmac->importBacklogBatch($halfDeficit, false, true) : ['imported' => 0];
             $this->info("✓ Publicados desde archivo: +{$haxDirect['imported']} DDL, +{$torDirect['imported']} Torrent.");
         }
     } else {
-        // 4. Goteo de drafts (publicación escalonada equilibrada)
+        // 5. Goteo de drafts (publicación escalonada equilibrada 3-way)
         $dripResult = Application::releaseDripBatch($limit);
         if ($dripResult['published_count'] > 0) {
             $remaining = Application::where('published', false)->count();
-            $this->info("✓ Goteo Draft: {$dripResult['published_count']} apps publicadas ({$dripResult['torrent_count']} Torrent, {$dripResult['ddl_count']} DDL). Quedan {$remaining} en cola draft.");
+            $this->info("✓ Goteo Draft: {$dripResult['published_count']} apps publicadas ({$dripResult['torrent_count']} Torrent, {$dripResult['ddl_count']} DDL, {$dripResult['pc_android_count']} PC/Android). Quedan {$remaining} en cola draft.");
         }
     }
 
@@ -125,70 +167,12 @@ $applyFrequency = function ($event, string $freq) {
     };
 };
 
-// 1. Automated DDL Smart Sync (Checks latest releases & updates)
-$haxmacEvent = Schedule::call(function () {
-    if (filter_var(Setting::get('scraper_cron_enabled', false), FILTER_VALIDATE_BOOLEAN)) {
-        $importer = app(HaxmacImporter::class);
-        $limit = (int) Setting::get('scraper_cron_limit', 10);
-        $result = $importer->syncLatestUpdates(true, $limit);
-        Setting::set('scraper_last_sync', now()->format('Y-m-d H:i:s'), 'scraper');
-        Log::info("DDL Smart Sync completed: {$result['new_imported']} new, {$result['updated']} updated (límite: {$limit}).");
-    }
-})->name('haxmac-smart-sync')->withoutOverlapping(60);
+// 1. Automated Unified Smart Sync (Orquesta Haxmac, Torrentmac y Cybermania con cuotas exactas y reasignación)
+$syncEvent = Schedule::command('scraper:sync')
+    ->name('scraper-unified-sync')
+    ->withoutOverlapping(60);
 
-$applyFrequency($haxmacEvent, $frequency);
-
-// 2. Automated TorrentMac Smart Sync (Checks latest torrent releases & updates)
-$torrentmacEvent = Schedule::call(function () {
-    if (filter_var(Setting::get('scraper_cron_enabled', false), FILTER_VALIDATE_BOOLEAN)
-        && filter_var(Setting::get('torrentmac_cron_enabled', true), FILTER_VALIDATE_BOOLEAN)) {
-        $importer = app(TorrentmacImporter::class);
-        $result = $importer->syncLatestUpdates(1, true);
-        Setting::set('torrentmac_last_sync', now()->format('Y-m-d H:i:s'), 'scraper');
-        Log::info("TorrentMac Smart Sync completed: {$result['new_imported']} new, {$result['updated']} updated.");
-    }
-})->name('torrentmac-smart-sync')->withoutOverlapping(60);
-
-$applyFrequency($torrentmacEvent, $frequency);
-
-// 3. Automated CyberMania Smart Sync (Checks latest Windows PC & Android releases)
-$cybermaniaEvent = Schedule::call(function () {
-    if (filter_var(Setting::get('scraper_cron_enabled', false), FILTER_VALIDATE_BOOLEAN)
-        && filter_var(Setting::get('cybermania_cron_enabled', true), FILTER_VALIDATE_BOOLEAN)) {
-        $importer = app(CybermaniaImporter::class);
-        $limit = (int) Setting::get('scraper_cron_limit', 10);
-        $portion = (int) ceil($limit / 3);
-        $result = $importer->syncLatestUpdates(true, $portion, 2, 'all');
-        Setting::set('cybermania_last_sync', now()->format('Y-m-d H:i:s'), 'scraper');
-        Log::info("CyberMania Smart Sync completed: {$result['imported']} new, {$result['updated']} updated.");
-    }
-})->name('cybermania-smart-sync')->withoutOverlapping(60);
-
-$applyFrequency($cybermaniaEvent, $frequency);
-
-// 3. Automated Drip Publishing (Publicación gradual equilibrada de la Cola Draft)
-$dripEvent = Schedule::call(function () {
-    if (filter_var(Setting::get('scraper_cron_enabled', false), FILTER_VALIDATE_BOOLEAN)) {
-        $limit = (int) Setting::get('scraper_cron_limit', 10);
-        $currentDrafts = Application::where('published', false)->count();
-
-        // Si la cola de drafts tiene menos que el límite, rellenarla automáticamente desde el backlog
-        if ($currentDrafts < $limit) {
-            $needed = max($limit, 10);
-            $half = (int) ceil($needed / 2);
-            app(HaxmacImporter::class)->importBacklogBatch($half, true, true);
-            app(TorrentmacImporter::class)->importBacklogBatch($half, true, true);
-        }
-
-        $dripResult = Application::releaseDripBatch($limit);
-        if ($dripResult['published_count'] > 0) {
-            $remaining = Application::where('published', false)->count();
-            Log::info("Drip Publishing (Goteo): Se publicaron {$dripResult['published_count']} apps ({$dripResult['torrent_count']} Torrent, {$dripResult['ddl_count']} DDL). Quedan {$remaining} en Cola Draft.");
-        }
-    }
-})->name('drip-publish-cron')->withoutOverlapping(60);
-
-$applyFrequency($dripEvent, $frequency);
+$applyFrequency($syncEvent, $frequency);
 
 // 3. Automated Deep Category Sync (Comprehensive crawl at configured time)
 Schedule::call(function () {
