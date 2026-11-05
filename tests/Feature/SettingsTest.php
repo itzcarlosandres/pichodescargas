@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Application;
+use App\Models\Category;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,6 +44,9 @@ class SettingsTest extends TestCase
         $response->assertSee('Cloudflare R2', false);
         $response->assertSee('Notificaciones', false);
         $response->assertSee('telegram_channel_id', false);
+        $response->assertSee('SEO PARA PÁGINAS DE PROGRAMAS / APPS', false);
+        $response->assertSee('seo_app_title_pattern', false);
+        $response->assertSee('seo_app_description_pattern', false);
         $response->assertSee('Guardar Cambios');
     }
 
@@ -209,5 +214,70 @@ class SettingsTest extends TestCase
             'remaining',
             'done',
         ]);
+    }
+
+    public function test_admin_can_update_app_seo_patterns(): void
+    {
+        $admin = $this->createAdminUser();
+
+        $response = $this->actingAs($admin)->post(route('admin.settings.update'), [
+            'seo_app_title_pattern' => '{title} for {category} - {site_name}',
+            'seo_app_description_pattern' => '{title} for {category}. Safe, clean and verified software for {category}.',
+        ]);
+
+        $response->assertRedirect(route('admin.settings'));
+        $this->assertEquals('{title} for {category} - {site_name}', Setting::get('seo_app_title_pattern'));
+        $this->assertEquals('{title} for {category}. Safe, clean and verified software for {category}.', Setting::get('seo_app_description_pattern'));
+    }
+
+    public function test_application_resolves_seo_title_and_description_with_custom_pattern_and_avoids_duplicate_version(): void
+    {
+        Setting::set('site_name', 'PichoDescargas');
+        Setting::set('seo_app_title_pattern', '{title} for {category} - {site_name}');
+        Setting::set('seo_app_description_pattern', '{title} for {category}. Safe and verified.');
+
+        $category = Category::create([
+            'name' => 'Programas PC',
+            'slug' => 'programas',
+            'icon' => 'laptop',
+            'order' => 1,
+        ]);
+
+        // Case 1: Name already contains version "NWinfo 1.6.7"
+        $appWithVersionInName = Application::create([
+            'category_id' => $category->id,
+            'name' => 'NWinfo 1.6.7',
+            'slug' => 'nwinfo-1-6-7',
+            'version' => '1.6.7',
+            'platform' => 'Windows 10/11',
+            'short_description' => 'Herramienta de diagnóstico de hardware.',
+            'published' => true,
+        ]);
+
+        // With pattern '{title} for {category} - {site_name}', should be clean without duplicate
+        $title1 = $appWithVersionInName->resolveSeoTitle();
+        $this->assertEquals('NWinfo 1.6.7 for Windows - PichoDescargas', $title1);
+
+        // Case 2: Pattern with explicit {title} {version} should NOT duplicate version if name has it
+        Setting::set('seo_app_title_pattern', '{title} {version} for {category} - {site_name}');
+        $title2 = $appWithVersionInName->resolveSeoTitle();
+        $this->assertEquals('NWinfo 1.6.7 for Windows - PichoDescargas', $title2);
+
+        // Case 3: App name without version
+        $appClean = Application::create([
+            'category_id' => $category->id,
+            'name' => 'NWinfo',
+            'slug' => 'nwinfo',
+            'version' => '1.6.7',
+            'platform' => 'Windows',
+            'published' => true,
+        ]);
+        $title3 = $appClean->resolveSeoTitle();
+        $this->assertEquals('NWinfo 1.6.7 for Windows - PichoDescargas', $title3);
+
+        // Verify public app-detail view renders the resolved title
+        $response = $this->get(route('app', $appWithVersionInName->slug));
+        $response->assertStatus(200);
+        $response->assertSee('<title>NWinfo 1.6.7 for Windows - PichoDescargas</title>', false);
     }
 }

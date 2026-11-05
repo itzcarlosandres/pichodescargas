@@ -519,6 +519,8 @@ class AdminController extends Controller
             'seo_meta_description' => 'nullable|string|max:500',
             'seo_keywords' => 'nullable|string|max:500',
             'seo_og_image' => 'nullable|image|max:3072',
+            'seo_app_title_pattern' => 'nullable|string|max:255',
+            'seo_app_description_pattern' => 'nullable|string|max:500',
             'site_tagline' => 'nullable|string|max:255',
             'site_description' => 'nullable|string|max:1000',
             'footer_text' => 'nullable|string|max:500',
@@ -606,6 +608,12 @@ class AdminController extends Controller
         }
         if ($request->has('seo_keywords')) {
             Setting::set('seo_keywords', $validated['seo_keywords'] ?? null, 'seo');
+        }
+        if ($request->has('seo_app_title_pattern')) {
+            Setting::set('seo_app_title_pattern', $validated['seo_app_title_pattern'] ?: '{title} for {category} - {site_name}', 'seo');
+        }
+        if ($request->has('seo_app_description_pattern')) {
+            Setting::set('seo_app_description_pattern', $validated['seo_app_description_pattern'] ?: '{title} for {category}. Safe, clean and verified software for {category}.', 'seo');
         }
 
         // General Info & Descriptions

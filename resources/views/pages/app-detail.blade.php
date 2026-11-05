@@ -1,17 +1,13 @@
 <x-app-layout>
     @php
-        $platformLabel = match(true) {
-            str_contains(strtolower($application->platform ?? ''), 'android') || $application->category?->slug === 'apps-android' => 'Android',
-            str_contains(strtolower($application->platform ?? ''), 'win') || in_array($application->category?->slug, ['programas', 'juegos-pc']) => 'Windows',
-            default => 'Mac',
-        };
+        $platformLabel = $application->resolvePlatformLabel();
         $osSchema = match($platformLabel) {
             'Android' => 'Android',
             'Windows' => 'Windows 10/11',
             default => 'macOS',
         };
-        $appTitle = "Download {$application->name} {$application->version} for {$platformLabel} - " . config('app.name');
-        $appDesc = Str::limit(strip_tags($application->short_description ?: $application->description), 160) ?: "Download {$application->name} {$application->version} for {$platformLabel}. Safe, fast and verified software.";
+        $appTitle = $application->resolveSeoTitle($platformLabel);
+        $appDesc = $application->resolveSeoDescription($platformLabel);
         $shareImage = route('app.og-image', $application->slug);
     @endphp
 

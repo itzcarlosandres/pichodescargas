@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class Application extends Model
 {
@@ -440,5 +441,91 @@ class Application extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Resolve the operating system / platform label for this application.
+     */
+    public function resolvePlatformLabel(): string
+    {
+        return match (true) {
+            str_contains(strtolower($this->platform ?? ''), 'android') || $this->category?->slug === 'apps-android' => 'Android',
+            str_contains(strtolower($this->platform ?? ''), 'win') || in_array($this->category?->slug, ['programas', 'juegos-pc']) => 'Windows',
+            default => 'Mac',
+        };
+    }
+
+    /**
+     * Resolve the dynamic SEO Title based on global admin settings pattern.
+     * Supports: {title}, {version}, {category}, {site_name}
+     * Intelligently prevents duplicate versions (e.g., if title already contains version).
+     */
+    public function resolveSeoTitle(?string $platform = null): string
+    {
+        $pattern = (string) setting('seo_app_title_pattern', '{title} for {category} - {site_name}');
+        if (trim($pattern) === '') {
+            $pattern = '{title} for {category} - {site_name}';
+        }
+
+        $platformLabel = $platform ?? $this->resolvePlatformLabel();
+        $siteName = (string) setting('site_name', 'PichoDescargas');
+        $version = trim((string) ($this->version ?? ''));
+        $title = trim((string) ($this->name ?? ''));
+
+        // Anti-duplication logic:
+        // If the pattern explicitly contains {version} AND the app name already ends with or includes the version,
+        // strip the version from the title so it does not duplicate (e.g. "NWinfo 1.6.7 1.6.7").
+        if ($version !== '') {
+            if (str_contains($pattern, '{version}')) {
+                $patternRegex = '/\s+v?'.preg_quote($version, '/').'$/i';
+                $title = preg_replace($patternRegex, '', $title) ?? $title;
+            }
+        }
+
+        $replacements = [
+            '{title}' => $title,
+            '{version}' => $version,
+            '{category}' => $platformLabel,
+            '{site_name}' => $siteName,
+        ];
+
+        $resolved = str_replace(array_keys($replacements), array_values($replacements), $pattern);
+
+        return trim((string) preg_replace('/\s+/', ' ', $resolved));
+    }
+
+    /**
+     * Resolve the dynamic SEO Meta Description based on global admin settings pattern.
+     * Supports: {description}, {title}, {version}, {category}, {site_name}
+     */
+    public function resolveSeoDescription(?string $platform = null): string
+    {
+        $pattern = (string) setting('seo_app_description_pattern', '{title} for {category}. Safe, clean and verified software for {category}.');
+        if (trim($pattern) === '') {
+            $pattern = '{title} for {category}. Safe, clean and verified software for {category}.';
+        }
+
+        $platformLabel = $platform ?? $this->resolvePlatformLabel();
+        $siteName = (string) setting('site_name', 'PichoDescargas');
+        $version = trim((string) ($this->version ?? ''));
+        $title = trim((string) ($this->name ?? ''));
+
+        $rawDesc = strip_tags((string) ($this->short_description ?: $this->description));
+        $cleanDesc = Str::limit(trim((string) preg_replace('/\s+/', ' ', $rawDesc)), 160);
+        if ($cleanDesc === '') {
+            $cleanDesc = "{$title} for {$platformLabel}. Safe, clean and verified software.";
+        }
+
+        $replacements = [
+            '{description}' => $cleanDesc,
+            '{title}' => $title,
+            '{version}' => $version,
+            '{category}' => $platformLabel,
+            '{site_name}' => $siteName,
+        ];
+
+        $resolved = str_replace(array_keys($replacements), array_values($replacements), $pattern);
+
+        return trim((string) preg_replace('/\s+/', ' ', $resolved));
     }
 }

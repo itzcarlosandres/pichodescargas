@@ -35,6 +35,8 @@ class Setting extends Model
         'seo_meta_description' => 'Descubre y descarga las mejores aplicaciones y juegos para Windows, Mac, Android y más. Rápido, seguro y verificado.',
         'seo_keywords' => 'pichodescargas, descargas, aplicaciones pc, programas windows, juegos pc, mac apps, android apk, utilidades',
         'seo_og_image' => 'images/og-share.jpg',
+        'seo_app_title_pattern' => '{title} for {category} - {site_name}',
+        'seo_app_description_pattern' => '{title} for {category}. Safe, clean and verified software for {category}.',
         'site_tagline' => 'Las mejores descargas de programas, apps y juegos',
         'site_description' => 'Descargas directas y verificadas de aplicaciones para Windows, Mac, Android y juegos de PC.',
         'footer_text' => '© 2026 PichoDescargas. Todos los derechos reservados. Descargas directas, limpias y verificadas.',

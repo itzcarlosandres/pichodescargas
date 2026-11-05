@@ -13,6 +13,8 @@
     logoIcon: '{{ old('logo_icon', $settings['logo_icon'] ?? 'download') }}',
     seoTitle: '{{ old('seo_meta_title', $settings['seo_meta_title'] ?? '') }}',
     seoDesc: '{{ old('seo_meta_description', $settings['seo_meta_description'] ?? '') }}',
+    seoAppTitlePattern: '{{ addslashes(old('seo_app_title_pattern', $settings['seo_app_title_pattern'] ?? '{title} for {category} - {site_name}')) }}',
+    seoAppDescPattern: '{{ addslashes(old('seo_app_description_pattern', $settings['seo_app_description_pattern'] ?? '{title} for {category}. Safe, clean and verified software for {category}.')) }}',
     aiProvider: '{{ old('ai_provider', $settings['ai_provider'] ?? 'deepseek') }}',
     deepseekApiKey: '{{ old('deepseek_api_key', $settings['deepseek_api_key'] ?? '') }}',
     deepseekModel: '{{ old('deepseek_model', $settings['deepseek_model'] ?? 'deepseek-chat') }}',
@@ -74,6 +76,70 @@
     vipSubtext: '{{ old('vip_download_subtext', $settings['vip_download_subtext'] ?? 'Direct High-Speed Server • Max Priority • 0s Wait') }}',
     vipBadge: '{{ old('vip_download_badge', $settings['vip_download_badge'] ?? 'ULTRA FAST') }}',
     vipOpenNewTab: {{ old('vip_download_open_new_tab', (bool) ($settings['vip_download_open_new_tab'] ?? true)) ? 'true' : 'false' }},
+
+    getPreviewAppTitle() {
+        let p = (this.seoAppTitlePattern || '').trim();
+        if (!p) p = '{title} for {category} - {site_name}';
+        let sampleTitle = 'Roland Cloud AIRA Series';
+        let sampleVersion = '2025.04.18';
+        let sampleCategory = 'Mac';
+        let fullSite = (this.siteName ? (this.siteName + (this.siteHighlight || '')) : 'PichoDescargas');
+
+        if (p.includes('{version}')) {
+            sampleTitle = 'Roland Cloud AIRA Series';
+        } else {
+            sampleTitle = 'Roland Cloud AIRA Series 2025.04.18';
+        }
+
+        return p
+            .replaceAll('{title}', sampleTitle)
+            .replaceAll('{version}', sampleVersion)
+            .replaceAll('{category}', sampleCategory)
+            .replaceAll('{site_name}', fullSite);
+    },
+
+    getPreviewAppDesc() {
+        let p = (this.seoAppDescPattern || '').trim();
+        if (!p) p = '{title} for {category}. Safe, clean and verified software for {category}.';
+        let sampleTitle = 'Roland Cloud AIRA Series 2025.04.18';
+        let sampleVersion = '2025.04.18';
+        let sampleCategory = 'macOS';
+        let fullSite = (this.siteName ? (this.siteName + (this.siteHighlight || '')) : 'PichoDescargas');
+        let sampleDesc = 'Roland Cloud AIRA Series 2025.04.18 for macOS. Safe, clean and verified software for Mac.';
+
+        return p
+            .replaceAll('{description}', sampleDesc)
+            .replaceAll('{title}', sampleTitle)
+            .replaceAll('{version}', sampleVersion)
+            .replaceAll('{category}', sampleCategory)
+            .replaceAll('{site_name}', fullSite);
+    },
+
+    insertTitleTag(tag) {
+        const el = document.getElementById('seo_app_title_pattern');
+        if (!el) return;
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        const val = el.value;
+        this.seoAppTitlePattern = val.substring(0, start) + tag + val.substring(end);
+        this.$nextTick(() => {
+            el.focus();
+            el.setSelectionRange(start + tag.length, start + tag.length);
+        });
+    },
+
+    insertDescTag(tag) {
+        const el = document.getElementById('seo_app_description_pattern');
+        if (!el) return;
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        const val = el.value;
+        this.seoAppDescPattern = val.substring(0, start) + tag + val.substring(end);
+        this.$nextTick(() => {
+            el.focus();
+            el.setSelectionRange(start + tag.length, start + tag.length);
+        });
+    },
 
     async testTelegramConnection() {
         if (!this.telegramBotToken || !this.telegramChannelId) {
@@ -959,6 +1025,114 @@
                     @endif
                     <input type="file" name="seo_og_image" accept="image/jpeg,image/png,image/webp"
                            class="w-full text-xs text-[#8C847A] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#201C18] file:text-white hover:file:bg-[#2A241F] file:cursor-pointer cursor-pointer">
+                </div>
+            </div>
+
+            <!-- SECCIÓN: SEO PARA PÁGINAS DE PROGRAMAS / APPS (AUTOMATIZACIÓN) -->
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-6">
+                <!-- Header -->
+                <div class="flex items-center justify-between pb-4 border-b border-[#241E18]">
+                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">
+                        SEO PARA PÁGINAS DE PROGRAMAS / APPS
+                    </h3>
+                    <span class="text-[10px] px-2.5 py-1 rounded-md bg-[#0099FF]/15 text-[#38BDF8] font-mono font-bold border border-[#0099FF]/30 uppercase tracking-wider">
+                        AUTOMATIZACIÓN
+                    </span>
+                </div>
+
+                <!-- Google Preview Card (Ejemplo Real) -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-[#736B63]">PREVISUALIZACIÓN EN GOOGLE (EJEMPLO REAL)</span>
+                        <span class="text-[11px] text-[#8C847A] font-mono">ficha individual</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-[#0E0C0A] border border-[#262019] space-y-1 max-w-3xl">
+                        <div class="flex items-center gap-1.5 text-xs text-[#8C847A] font-mono">
+                            <span class="text-[#34D399]">https://{{ parse_url(config('app.url'), PHP_URL_HOST) ?? 'pichodescargas.tech' }}</span>
+                            <span class="text-[#6E675E]">›</span>
+                            <span>app</span>
+                            <span class="text-[#6E675E]">›</span>
+                            <span class="text-[#A8A199]">roland-cloud-aira-series</span>
+                        </div>
+                        <h4 class="text-base font-medium text-[#8AB4F8] hover:underline cursor-pointer"
+                            x-text="getPreviewAppTitle()">
+                        </h4>
+                        <p class="text-xs text-[#BDC1C6] leading-relaxed line-clamp-2"
+                           x-text="getPreviewAppDesc()">
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Estructura del Título -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label for="seo_app_title_pattern" class="text-xs font-bold text-[#A8A199] uppercase tracking-wider">
+                            ESTRUCTURA DEL TÍTULO (&lt;TITLE&gt;) DE CADA PROGRAMA
+                        </label>
+                        <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span>Evita versiones repetidas automáticamente</span>
+                        </span>
+                    </div>
+                    <input type="text"
+                           id="seo_app_title_pattern"
+                           name="seo_app_title_pattern"
+                           x-model="seoAppTitlePattern"
+                           placeholder="{title} for {category} - {site_name}"
+                           class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none transition-colors">
+
+                    <div class="flex flex-wrap items-center gap-2 pt-1 text-xs text-[#8C847A]">
+                        <span>Variables disponibles (haz clic para insertar):</span>
+                        <button type="button" @click="insertTitleTag('{title}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-sky-400 border border-sky-500/30 font-mono text-[11px] transition-colors cursor-pointer">{title}</button>
+                        <button type="button" @click="insertTitleTag('{version}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-sky-400 border border-sky-500/30 font-mono text-[11px] transition-colors cursor-pointer">{version}</button>
+                        <button type="button" @click="insertTitleTag('{site_name}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-sky-400 border border-sky-500/30 font-mono text-[11px] transition-colors cursor-pointer">{site_name}</button>
+                        <button type="button" @click="insertTitleTag('{category}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-sky-400 border border-sky-500/30 font-mono text-[11px] transition-colors cursor-pointer">{category}</button>
+                    </div>
+                </div>
+
+                <!-- Plantilla de Meta Descripción -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label for="seo_app_description_pattern" class="text-xs font-bold text-[#A8A199] uppercase tracking-wider">
+                            PLANTILLA DE META DESCRIPCIÓN DE CADA PROGRAMA (&lt;META NAME="DESCRIPTION"&gt;)
+                        </label>
+                        <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span>Usa {description} para descripciones únicas en Google</span>
+                        </span>
+                    </div>
+                    <input type="text"
+                           id="seo_app_description_pattern"
+                           name="seo_app_description_pattern"
+                           x-model="seoAppDescPattern"
+                           placeholder="{title} for {category}. Safe, clean and verified software for {category}."
+                           class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none transition-colors">
+
+                    <div class="flex flex-wrap items-center gap-2 pt-1 text-xs text-[#8C847A]">
+                        <span>Variables disponibles (haz clic para insertar):</span>
+                        <button type="button" @click="insertDescTag('{description}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-emerald-400 border border-emerald-500/30 font-mono text-[11px] transition-colors cursor-pointer flex items-center gap-1">
+                            <span>{description}</span>
+                            <span class="text-[10px] text-[#A8A199]">(Descripción de la App)</span>
+                        </button>
+                        <button type="button" @click="insertDescTag('{title}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-sky-400 border border-sky-500/30 font-mono text-[11px] transition-colors cursor-pointer">{title}</button>
+                        <button type="button" @click="insertDescTag('{version}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-sky-400 border border-sky-500/30 font-mono text-[11px] transition-colors cursor-pointer">{version}</button>
+                        <button type="button" @click="insertDescTag('{site_name}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-sky-400 border border-sky-500/30 font-mono text-[11px] transition-colors cursor-pointer">{site_name}</button>
+                        <button type="button" @click="insertDescTag('{category}')" class="px-2.5 py-1 rounded-lg bg-[#1E1914] hover:bg-[#2A231C] text-sky-400 border border-sky-500/30 font-mono text-[11px] transition-colors cursor-pointer">{category}</button>
+                    </div>
+                </div>
+
+                <!-- Consejo SEO para Google -->
+                <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                    <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div class="text-xs text-amber-200/90 leading-relaxed">
+                        <strong class="text-amber-300 font-bold">Consejo SEO para Google:</strong> Evita incluir la palabra <em>"Download"</em> al inicio del título. Google suele clasificar mejor títulos limpios como <code>{title} for Mac - {site_name}</code> o <code>{title} for macOS</code>. Además, nuestro motor limpiador detecta automáticamente si el nombre de la app ya trae la versión para no duplicarla jamás.
+                    </div>
                 </div>
             </div>
         </div>

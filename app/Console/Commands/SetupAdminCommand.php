@@ -55,6 +55,8 @@ class SetupAdminCommand extends Command
         Setting::firstOrCreate(['key' => 'seo_meta_title'], ['value' => 'PichoDescargas - Descarga Aplicaciones, Juegos y Software', 'group' => 'seo']);
         Setting::firstOrCreate(['key' => 'seo_meta_description'], ['value' => 'Descubre y descarga las mejores aplicaciones y juegos para Windows, Mac, Android y más. Rápido, seguro y verificado.', 'group' => 'seo']);
         Setting::firstOrCreate(['key' => 'seo_keywords'], ['value' => 'pichodescargas, descargas, aplicaciones pc, programas windows, juegos pc, mac apps, android apk, utilidades', 'group' => 'seo']);
+        Setting::firstOrCreate(['key' => 'seo_app_title_pattern'], ['value' => '{title} for {category} - {site_name}', 'group' => 'seo']);
+        Setting::firstOrCreate(['key' => 'seo_app_description_pattern'], ['value' => '{title} for {category}. Safe, clean and verified software for {category}.', 'group' => 'seo']);
         Setting::firstOrCreate(['key' => 'contact_email'], ['value' => $email, 'group' => 'general']);
 
         if ($this->option('clear-posts')) {
