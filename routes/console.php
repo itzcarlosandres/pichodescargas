@@ -102,7 +102,7 @@ Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desa
     if ($cyberEnabled) {
         $cyberTarget = $cyberQuota + $reallocatedPool;
         $reallocatedPool = 0;
-        $this->info("Iniciando sincronización CyberMania (PC & APK, cuota: {$cyberTarget} apps)...");
+        $this->info("Iniciando sincronización equilibrada CyberMania (Programas, Juegos PC & Apps Android, cuota: {$cyberTarget} apps)...");
         $cyberResult = $cybermania->syncLatestUpdates(true, $cyberTarget, 2, 'all');
         $cyberImported = (int) ($cyberResult['imported'] ?? 0);
         if ($cyberImported < $cyberTarget) {

@@ -6,6 +6,7 @@ use App\Models\Application;
 use App\Models\Category;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Scraper\CybermaniaParser;
 use App\Services\Scraper\HaxmacParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -309,5 +310,85 @@ HTML;
         $this->assertEquals(2, $result['torrent_count']);
         $this->assertEquals(4, $result['ddl_count']);
         $this->assertEquals(4, Application::where('published', false)->count());
+    }
+
+    public function test_cybermania_detects_all_three_categories_accurately(): void
+    {
+        $parser = app(CybermaniaParser::class);
+
+        $androidCat = $parser->detectCategoryFromUrl('https://www.cybermania.ws/android/telegram-premium/');
+        $this->assertEquals('apps-android', $androidCat['slug']);
+
+        $gamesCat = $parser->detectCategoryFromUrl('https://www.cybermania.ws/games/grand-theft-auto-v/');
+        $this->assertEquals('juegos-pc', $gamesCat['slug']);
+
+        $programCat = $parser->detectCategoryFromUrl('https://www.cybermania.ws/appz/ccleaner-pro/');
+        $this->assertEquals('programas', $programCat['slug']);
+    }
+
+    public function test_release_drip_batch_balances_three_way_with_pc_and_android(): void
+    {
+        $macCat = Category::create(['name' => 'Mac Apps', 'slug' => 'mac-apps', 'icon' => 'apple', 'is_active' => true]);
+        $progCat = Category::create(['name' => 'Programas', 'slug' => 'programas', 'icon' => 'laptop', 'is_active' => true]);
+        $gameCat = Category::create(['name' => 'Juegos PC', 'slug' => 'juegos-pc', 'icon' => 'gamepad', 'is_active' => true]);
+        $apkCat = Category::create(['name' => 'Apps Android', 'slug' => 'apps-android', 'icon' => 'smartphone', 'is_active' => true]);
+
+        // Create 10 Torrent drafts, 10 Mac DDL drafts, and 10 PC/Android drafts (total 30)
+        for ($i = 1; $i <= 10; $i++) {
+            Application::create([
+                'category_id' => $macCat->id,
+                'name' => "Mac Torrent {$i}",
+                'slug' => "mac-torrent-{$i}",
+                'version' => "1.{$i}",
+                'has_torrent' => true,
+                'published' => false,
+            ]);
+            Application::create([
+                'category_id' => $macCat->id,
+                'name' => "Mac DDL {$i}",
+                'slug' => "mac-ddl-{$i}",
+                'version' => "1.{$i}",
+                'has_torrent' => false,
+                'published' => false,
+            ]);
+        }
+
+        // 4 Programs, 3 Games, 3 Android = 10 PC/Android
+        for ($i = 1; $i <= 4; $i++) {
+            Application::create([
+                'category_id' => $progCat->id,
+                'name' => "PC Program {$i}",
+                'slug' => "pc-program-{$i}",
+                'version' => "1.{$i}",
+                'published' => false,
+            ]);
+        }
+        for ($i = 1; $i <= 3; $i++) {
+            Application::create([
+                'category_id' => $gameCat->id,
+                'name' => "PC Game {$i}",
+                'slug' => "pc-game-{$i}",
+                'version' => "1.{$i}",
+                'published' => false,
+            ]);
+            Application::create([
+                'category_id' => $apkCat->id,
+                'name' => "Android APK {$i}",
+                'slug' => "android-apk-{$i}",
+                'version' => "1.{$i}",
+                'published' => false,
+            ]);
+        }
+
+        $this->assertEquals(30, Application::where('published', false)->count());
+
+        // Release batch of 30: should balance 10 Torrent + 10 DDL + 10 PC/Android
+        $result = Application::releaseDripBatch(30);
+
+        $this->assertEquals(30, $result['published_count']);
+        $this->assertEquals(10, $result['torrent_count']);
+        $this->assertEquals(10, $result['ddl_count']);
+        $this->assertEquals(10, $result['pc_android_count']);
+        $this->assertEquals(0, Application::where('published', false)->count());
     }
 }

@@ -424,11 +424,107 @@ class CybermaniaImporter
     }
 
     /**
-     * Synchronize latest additions from CyberMania
+     * Synchronize latest additions from CyberMania.
+     * When $category is 'all' or 'balanced', it balances imports across CyberMania's
+     * 3 primary categories: 'appz' (Programs), 'games' (PC Games), and 'android' (Android Apps)
+     * with cascading spillover so all categories are consistently imported.
      *
      * @return array{imported: int, updated: int, skipped: int, failed: int, items: array}
      */
     public function syncLatestUpdates(bool $publishImmediately = true, int $limit = 10, int $pages = 2, string $category = 'all'): array
+    {
+        if ($category === 'all' || $category === 'balanced') {
+            return $this->syncMultiCategoryUpdates($publishImmediately, $limit, $pages);
+        }
+
+        return $this->syncSingleCategoryUpdates($publishImmediately, $limit, $pages, $category);
+    }
+
+    /**
+     * Multi-category balanced sync across Programs (appz), PC Games (games), and Android Apps (android)
+     *
+     * @return array{imported: int, updated: int, skipped: int, failed: int, items: array}
+     */
+    public function syncMultiCategoryUpdates(bool $publishImmediately = true, int $limit = 10, int $pages = 2): array
+    {
+        // 3 primary CyberMania sections
+        $categories = [
+            'appz' => 'Programs',
+            'games' => 'PC Games',
+            'android' => 'Android Apps',
+        ];
+
+        // Calculate balanced distribution across the 3 sections
+        // e.g. for limit 10: appz = 4, games = 3, android = 3
+        $appzQuota = (int) ceil($limit / 3);
+        $gamesQuota = (int) ceil(($limit - $appzQuota) / 2);
+        $androidQuota = max(0, $limit - $appzQuota - $gamesQuota);
+
+        $quotas = [
+            'appz' => $appzQuota,
+            'games' => $gamesQuota,
+            'android' => $androidQuota,
+        ];
+
+        $totalImported = 0;
+        $totalUpdated = 0;
+        $totalSkipped = 0;
+        $totalFailed = 0;
+        $allItems = [];
+        $spillover = 0;
+
+        foreach ($quotas as $catSlug => $baseQuota) {
+            $catTarget = $baseQuota + $spillover;
+            $spillover = 0;
+
+            if ($catTarget <= 0 && ($totalImported + $totalUpdated) < $limit) {
+                $catTarget = 1;
+            }
+
+            if ($catTarget <= 0) {
+                continue;
+            }
+
+            $catResult = $this->syncSingleCategoryUpdates($publishImmediately, $catTarget, $pages, $catSlug);
+
+            $catNew = (int) ($catResult['imported'] ?? 0);
+            $totalImported += $catNew;
+            $totalUpdated += (int) ($catResult['updated'] ?? 0);
+            $totalSkipped += (int) ($catResult['skipped'] ?? 0);
+            $totalFailed += (int) ($catResult['failed'] ?? 0);
+            $allItems = array_merge($allItems, $catResult['items'] ?? []);
+
+            if ($catNew < $catTarget) {
+                $spillover += ($catTarget - $catNew);
+            }
+        }
+
+        // Final pass: If quota remains unfilled, attempt fallback sweep from main catalog
+        $remainingQuota = $limit - ($totalImported + $totalUpdated);
+        if ($remainingQuota > 0) {
+            $fallbackResult = $this->syncSingleCategoryUpdates($publishImmediately, $remainingQuota, $pages, 'all');
+            $totalImported += (int) ($fallbackResult['imported'] ?? 0);
+            $totalUpdated += (int) ($fallbackResult['updated'] ?? 0);
+            $totalSkipped += (int) ($fallbackResult['skipped'] ?? 0);
+            $totalFailed += (int) ($fallbackResult['failed'] ?? 0);
+            $allItems = array_merge($allItems, $fallbackResult['items'] ?? []);
+        }
+
+        return [
+            'imported' => $totalImported,
+            'updated' => $totalUpdated,
+            'skipped' => $totalSkipped,
+            'failed' => $totalFailed,
+            'items' => $allItems,
+        ];
+    }
+
+    /**
+     * Synchronize updates for a single category
+     *
+     * @return array{imported: int, updated: int, skipped: int, failed: int, items: array}
+     */
+    public function syncSingleCategoryUpdates(bool $publishImmediately = true, int $limit = 10, int $pages = 2, string $category = 'all'): array
     {
         $imported = 0;
         $updated = 0;

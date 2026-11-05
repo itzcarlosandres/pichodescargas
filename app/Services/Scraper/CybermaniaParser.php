@@ -97,7 +97,7 @@ class CybermaniaParser
             }
 
             // Determine Target Category Slug
-            $categoryInfo = $this->detectCategoryFromUrl($url);
+            $categoryInfo = $this->detectCategoryFromUrl($url, $node);
 
             $apps[] = [
                 'name' => $rawTitle,
@@ -167,7 +167,7 @@ class CybermaniaParser
 
         $version = $this->extractVersion($rawTitle);
         $cleanName = $this->cleanAppName($rawTitle, $version);
-        $categoryInfo = $this->detectCategoryFromUrl($sourceUrl);
+        $categoryInfo = $this->detectCategoryFromUrl($sourceUrl, $crawler);
 
         // Extract Icon
         $iconUrl = null;
@@ -352,24 +352,51 @@ class CybermaniaParser
     }
 
     /**
-     * Map CyberMania category URL to PichoDescargas Category
+     * Map CyberMania category URL or DOM content to PichoDescargas Category
      *
      * @return array{slug: string, name: string}
      */
-    public function detectCategoryFromUrl(string $url): array
+    public function detectCategoryFromUrl(string $url, ?Crawler $crawler = null): array
     {
-        if (str_contains($url, '/android/')) {
+        $lowerUrl = strtolower($url);
+
+        if (str_contains($lowerUrl, '/android/') || str_contains($lowerUrl, 'android')) {
             return [
                 'slug' => 'apps-android',
                 'name' => 'Android Apps',
             ];
         }
 
-        if (str_contains($url, '/games/')) {
+        if (str_contains($lowerUrl, '/games/') || str_contains($lowerUrl, 'games')) {
             return [
                 'slug' => 'juegos-pc',
                 'name' => 'PC Games',
             ];
+        }
+
+        if ($crawler) {
+            $catText = '';
+            try {
+                $crawler->filter('a[rel*="category"], .category a, .cat-links a, .post-category a, a[href*="/category/"], .breadcrumbs a')->each(function (Crawler $node) use (&$catText) {
+                    $catText .= ' '.strtolower($node->text()).' '.strtolower((string) $node->attr('href'));
+                });
+            } catch (\Throwable) {
+                // Ignore DOM selection exceptions
+            }
+
+            if (str_contains($catText, 'android')) {
+                return [
+                    'slug' => 'apps-android',
+                    'name' => 'Android Apps',
+                ];
+            }
+
+            if (str_contains($catText, 'games') || str_contains($catText, 'game') || str_contains($catText, 'juegos')) {
+                return [
+                    'slug' => 'juegos-pc',
+                    'name' => 'PC Games',
+                ];
+            }
         }
 
         // Default to Programs (Windows PC) for /appz/, /hardware/, etc.

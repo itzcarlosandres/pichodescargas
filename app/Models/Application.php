@@ -357,15 +357,37 @@ class Application extends Model
 
         $selectedIds = array_merge($selectedIds, $ddlDrafts->pluck('id')->all());
 
-        // 3. Up to quota3 PC & Android drafts (oldest first)
+        // 3. Up to quota3 PC & Android drafts (balanced across Programas, Juegos PC, and Apps Android)
         $pcAndroidDrafts = collect();
-        if (! empty($pcAndroidCategoryIds)) {
-            $pcAndroidDrafts = static::where('published', false)
-                ->whereIn('category_id', $pcAndroidCategoryIds)
-                ->whereNotIn('id', $selectedIds)
-                ->orderBy('id', 'asc')
-                ->limit($quota3)
-                ->get();
+        if (! empty($pcAndroidCategoryIds) && $quota3 > 0) {
+            $catCount = count($pcAndroidCategoryIds);
+            $subQuota = max(1, (int) ceil($quota3 / $catCount));
+
+            // First pass: pull balanced drafts from each PC/Android category
+            foreach ($pcAndroidCategoryIds as $subCatId) {
+                if ($pcAndroidDrafts->count() >= $quota3) {
+                    break;
+                }
+                $take = min($subQuota, $quota3 - $pcAndroidDrafts->count());
+                $subDrafts = static::where('published', false)
+                    ->where('category_id', $subCatId)
+                    ->whereNotIn('id', array_merge($selectedIds, $pcAndroidDrafts->pluck('id')->all()))
+                    ->orderBy('id', 'asc')
+                    ->limit($take)
+                    ->get();
+                $pcAndroidDrafts = $pcAndroidDrafts->concat($subDrafts);
+            }
+
+            // Second pass: if some subcategories had fewer drafts, fill remaining quota3 from any available PC/Android category
+            if ($pcAndroidDrafts->count() < $quota3) {
+                $remPCDrafts = static::where('published', false)
+                    ->whereIn('category_id', $pcAndroidCategoryIds)
+                    ->whereNotIn('id', array_merge($selectedIds, $pcAndroidDrafts->pluck('id')->all()))
+                    ->orderBy('id', 'asc')
+                    ->limit($quota3 - $pcAndroidDrafts->count())
+                    ->get();
+                $pcAndroidDrafts = $pcAndroidDrafts->concat($remPCDrafts);
+            }
 
             $selectedIds = array_merge($selectedIds, $pcAndroidDrafts->pluck('id')->all());
         }
@@ -398,7 +420,7 @@ class Application extends Model
         return [
             'published_count' => $allDrafts->count(),
             'torrent_count' => $allDrafts->where('has_torrent', true)->count(),
-            'ddl_count' => $allDrafts->where('has_torrent', false)->count(),
+            'ddl_count' => $allDrafts->where('has_torrent', false)->whereNotIn('category_id', $pcAndroidCategoryIds)->count(),
             'pc_android_count' => $allDrafts->whereIn('category_id', $pcAndroidCategoryIds)->count(),
             'apps' => $allDrafts,
         ];
