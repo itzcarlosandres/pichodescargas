@@ -1283,7 +1283,6 @@
                 </div>
             </div>
         </div>
-        </div>
 
         <!-- TAB 5: CLOUDFLARE R2 & ALMACENAMIENTO -->
         <div x-show="tab === 'storage'" x-cloak x-init="fetchR2Stats()" class="space-y-6">

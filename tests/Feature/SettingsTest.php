@@ -36,7 +36,12 @@ class SettingsTest extends TestCase
         $response->assertSee('Configuración del Portal');
         $response->assertSee('Identidad & Logo', false);
         $response->assertSee('SEO & Metadatos', false);
+        $response->assertSee('Botón VIP', false);
+        $response->assertSee('Scripts & Analytics', false);
         $response->assertSee('Información & Textos', false);
+        $response->assertSee('Cloudflare R2', false);
+        $response->assertSee('Notificaciones', false);
+        $response->assertSee('telegram_channel_id', false);
         $response->assertSee('Guardar Cambios');
     }
 
