@@ -45,6 +45,14 @@ class CategorySeeder extends Seeder
                 'sort_order' => 4,
                 'is_active' => true,
             ],
+            [
+                'name' => 'Free Movies',
+                'slug' => 'peliculas-gratis',
+                'description' => 'Películas, estrenos y series en Full HD',
+                'icon' => 'peliculas-gratis',
+                'sort_order' => 5,
+                'is_active' => true,
+            ],
         ];
 
         foreach ($categories as $cat) {

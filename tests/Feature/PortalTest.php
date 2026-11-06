@@ -10,16 +10,16 @@ use Tests\TestCase;
 
 class PortalTest extends TestCase
 {
-    private function createCategoryAndApp(array $appAttributes = []): array
+    private function createCategoryAndApp(array $appAttributes = [], array $categoryAttributes = []): array
     {
         $category = Category::firstOrCreate(
-            ['slug' => 'utilidades'],
-            [
-                'name' => 'Utilidades',
-                'description' => 'Herramientas útiles',
+            ['slug' => $categoryAttributes['slug'] ?? 'programas'],
+            array_merge([
+                'name' => 'Programas',
+                'description' => 'Herramientas y programas útiles',
                 'is_active' => true,
                 'sort_order' => 1,
-            ]
+            ], $categoryAttributes)
         );
 
         $app = Application::create(array_merge([
@@ -60,7 +60,7 @@ class PortalTest extends TestCase
 
     public function test_categories_page_renders_successfully(): void
     {
-        $this->createCategoryAndApp();
+        $this->createCategoryAndApp([], ['name' => 'Utilidades', 'slug' => 'utilidades']);
 
         $response = $this->get(route('categories'));
 
@@ -76,7 +76,7 @@ class PortalTest extends TestCase
         $response = $this->get(route('category', $category->slug));
 
         $response->assertStatus(200);
-        $response->assertSee('Utilidades');
+        $response->assertSee($category->name);
         $response->assertSee('7-Zip');
     }
 
@@ -471,5 +471,47 @@ class PortalTest extends TestCase
         $response->assertSee('Fresh Catalog App');
         $response->assertSee('Added '.now()->format('M j, Y'));
         $response->assertDontSee('title="Actualizado"', false);
+    }
+
+    public function test_peliculas_gratis_category_and_movies_render_on_home_and_category_page(): void
+    {
+        $category = Category::firstOrCreate(
+            ['slug' => 'peliculas-gratis'],
+            [
+                'name' => 'Free Movies',
+                'description' => 'Películas, estrenos y series en Full HD',
+                'icon' => 'peliculas-gratis',
+                'sort_order' => 5,
+                'is_active' => true,
+            ]
+        );
+
+        Application::firstOrCreate(
+            ['slug' => 'deadpool-and-wolverine-2024'],
+            [
+                'category_id' => $category->id,
+                'name' => 'Deadpool & Wolverine',
+                'version' => '2024 • 4K UHD',
+                'published' => true,
+            ]
+        );
+
+        // Home should display Free Movies section
+        $homeResponse = $this->get(route('home'));
+        $homeResponse->assertStatus(200);
+        $homeResponse->assertSee('Free Movies');
+        $homeResponse->assertSee('Deadpool & Wolverine');
+
+        // Category page should display movies
+        $catResponse = $this->get(route('category', 'peliculas-gratis'));
+        $catResponse->assertStatus(200);
+        $catResponse->assertSee('Deadpool & Wolverine');
+
+        // /movies and /category/movies should redirect to /category/peliculas-gratis
+        $redirect1 = $this->get('/movies');
+        $redirect1->assertRedirect('/category/peliculas-gratis');
+
+        $redirect2 = $this->get('/category/movies');
+        $redirect2->assertRedirect('/category/peliculas-gratis');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Application;
+use App\Models\Category;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Console\Command;
@@ -58,6 +59,17 @@ class SetupAdminCommand extends Command
         Setting::firstOrCreate(['key' => 'seo_app_title_pattern'], ['value' => '{title} for {category} - {site_name}', 'group' => 'seo']);
         Setting::firstOrCreate(['key' => 'seo_app_description_pattern'], ['value' => '{title} for {category}. Safe, clean and verified software for {category}.', 'group' => 'seo']);
         Setting::firstOrCreate(['key' => 'contact_email'], ['value' => $email, 'group' => 'general']);
+
+        Category::firstOrCreate(
+            ['slug' => 'peliculas-gratis'],
+            [
+                'name' => 'Free Movies',
+                'description' => 'Películas, estrenos y series en Full HD',
+                'icon' => 'peliculas-gratis',
+                'sort_order' => 5,
+                'is_active' => true,
+            ]
+        );
 
         if ($this->option('clear-posts')) {
             $count = Application::count();

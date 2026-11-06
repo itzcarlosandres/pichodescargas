@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Mac Apps', 'slug' => 'mac-apps', 'description' => 'Aplicaciones y software para macOS', 'icon' => 'mac-apps', 'sort_order' => 2, 'is_active' => true],
             ['name' => 'Apps Android', 'slug' => 'apps-android', 'description' => 'Aplicaciones y herramientas APK para Android', 'icon' => 'apps-android', 'sort_order' => 3, 'is_active' => true],
             ['name' => 'Juegos PC', 'slug' => 'juegos-pc', 'description' => 'Juegos completos para PC Windows', 'icon' => 'juegos-pc', 'sort_order' => 4, 'is_active' => true],
+            ['name' => 'Free Movies', 'slug' => 'peliculas-gratis', 'description' => 'Películas, estrenos y series en Full HD', 'icon' => 'peliculas-gratis', 'sort_order' => 5, 'is_active' => true],
         ];
 
         $result = [];

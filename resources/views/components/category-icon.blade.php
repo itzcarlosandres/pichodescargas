@@ -40,6 +40,16 @@
             <x-lucide-gamepad-2 class="{{ $class }}" />
             @break
 
+        @case('peliculas-gratis')
+        @case('peliculas')
+        @case('pelicula')
+        @case('movies')
+        @case('movie')
+        @case('film')
+        @case('cinema')
+            <x-lucide-film class="{{ $class }}" />
+            @break
+
         @case('app')
         @case('applications')
         @case('apps')

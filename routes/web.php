@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/categories', [HomeController::class, 'categories'])->name('categories');
+Route::redirect('/category/movies', '/category/peliculas-gratis');
+Route::redirect('/movies', '/category/peliculas-gratis');
 Route::get('/category/{category:slug}', [HomeController::class, 'category'])->name('category');
 Route::get('/app/{application:slug}', [HomeController::class, 'app'])->name('app');
 Route::get('/app/{application:slug}/og-image.jpg', [HomeController::class, 'ogImage'])->name('app.og-image');
