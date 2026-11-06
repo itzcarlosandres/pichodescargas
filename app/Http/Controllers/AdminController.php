@@ -133,8 +133,10 @@ class AdminController extends Controller
         $categories = Category::active()->ordered()->get();
         $application = new Application;
         $app = $application;
+        $r2Active = (bool) Setting::get('r2_enabled', Setting::get('torrentmac_storage_disk') === 'r2');
+        $torrentDisk = Setting::get('torrentmac_storage_disk', 'local');
 
-        return view('admin.applications.form', compact('application', 'app', 'categories'));
+        return view('admin.applications.form', compact('application', 'app', 'categories', 'r2Active', 'torrentDisk'));
     }
 
     public function storeApplication(Request $request)
@@ -157,6 +159,16 @@ class AdminController extends Controller
             'download_mirrors.*.name' => 'nullable|string|max:100',
             'download_mirrors.*.url' => 'nullable|string|max:1000',
             'has_torrent' => 'nullable|boolean',
+            'torrent_file' => [
+                'nullable',
+                'file',
+                'max:10240',
+                function ($attribute, $value, $fail) {
+                    if ($value && strtolower($value->getClientOriginalExtension()) !== 'torrent') {
+                        $fail('El archivo seleccionado debe ser un archivo .torrent válido.');
+                    }
+                },
+            ],
             'torrent_url' => 'nullable|string|max:1000',
             'magnet_link' => 'nullable|string|max:2000',
             'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:4096',
@@ -168,9 +180,38 @@ class AdminController extends Controller
         $validated['featured'] = $request->boolean('featured');
         $validated['popular'] = $request->boolean('popular');
         $validated['published'] = $request->boolean('published', true);
-        $validated['has_torrent'] = $request->boolean('has_torrent') || ! empty($request->input('torrent_url')) || ! empty($request->input('magnet_link'));
+        $validated['has_torrent'] = $request->boolean('has_torrent')
+            || $request->hasFile('torrent_file')
+            || ! empty($request->input('torrent_url'))
+            || ! empty($request->input('magnet_link'));
         $validated['torrent_url'] = $request->input('torrent_url') ?: null;
         $validated['magnet_link'] = $request->input('magnet_link') ?: null;
+
+        // Subida y procesamiento de archivo .torrent (Local / R2)
+        if ($request->hasFile('torrent_file')) {
+            try {
+                $file = $request->file('torrent_file');
+                /** @var TorrentStorageService $storageService */
+                $storageService = app(TorrentStorageService::class);
+                $brandedFilename = $storageService->generateBrandedFilename(
+                    $validated['name'],
+                    $validated['version'] ?? null,
+                    $file->getClientOriginalName()
+                );
+                $binary = file_get_contents($file->getRealPath());
+                $stored = $storageService->storeTorrentBinary($binary, $brandedFilename, $validated['slug'], $validated['name']);
+
+                $validated['torrent_file_path'] = $stored['file_path'];
+                $validated['torrent_url'] = $stored['public_url'];
+                $validated['has_torrent'] = true;
+
+                if (empty($validated['magnet_link']) && ! empty($stored['magnet_link'])) {
+                    $validated['magnet_link'] = $stored['magnet_link'];
+                }
+            } catch (\Throwable $e) {
+                Log::error('AdminController: Error al procesar archivo torrent subido: '.$e->getMessage());
+            }
+        }
 
         // Parse custom download mirrors
         $mirrors = [];
@@ -204,6 +245,8 @@ class AdminController extends Controller
                 'changelog' => $request->input('changelog'),
                 'download_url' => $validated['download_url'] ?? null,
                 'download_mirrors' => $validated['download_mirrors'] ?? null,
+                'torrent_url' => $validated['torrent_url'] ?? null,
+                'torrent_file_path' => $validated['torrent_file_path'] ?? null,
                 'size' => $validated['size'] ?? null,
                 'is_current' => true,
                 'released_at' => now(),
@@ -226,8 +269,10 @@ class AdminController extends Controller
         $categories = Category::active()->ordered()->get();
         $application->load(['category', 'currentVersion', 'versions']);
         $app = $application;
+        $r2Active = (bool) Setting::get('r2_enabled', Setting::get('torrentmac_storage_disk') === 'r2');
+        $torrentDisk = Setting::get('torrentmac_storage_disk', 'local');
 
-        return view('admin.applications.form', compact('application', 'app', 'categories'));
+        return view('admin.applications.form', compact('application', 'app', 'categories', 'r2Active', 'torrentDisk'));
     }
 
     public function updateApplication(Request $request, Application $application)
@@ -250,6 +295,17 @@ class AdminController extends Controller
             'download_mirrors.*.name' => 'nullable|string|max:100',
             'download_mirrors.*.url' => 'nullable|string|max:1000',
             'has_torrent' => 'nullable|boolean',
+            'torrent_file' => [
+                'nullable',
+                'file',
+                'max:10240',
+                function ($attribute, $value, $fail) {
+                    if ($value && strtolower($value->getClientOriginalExtension()) !== 'torrent') {
+                        $fail('El archivo seleccionado debe ser un archivo .torrent válido.');
+                    }
+                },
+            ],
+            'remove_torrent_file' => 'nullable|boolean',
             'torrent_url' => 'nullable|string|max:1000',
             'magnet_link' => 'nullable|string|max:2000',
             'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:4096',
@@ -261,9 +317,55 @@ class AdminController extends Controller
         $validated['featured'] = $request->boolean('featured');
         $validated['popular'] = $request->boolean('popular');
         $validated['published'] = $request->boolean('published');
-        $validated['has_torrent'] = $request->boolean('has_torrent') || ! empty($request->input('torrent_url')) || ! empty($request->input('magnet_link'));
+        $validated['has_torrent'] = $request->boolean('has_torrent')
+            || $request->hasFile('torrent_file')
+            || ! empty($request->input('torrent_url'))
+            || ! empty($request->input('magnet_link'))
+            || (! empty($application->torrent_file_path) && ! $request->boolean('remove_torrent_file'));
         $validated['torrent_url'] = $request->input('torrent_url') ?: null;
         $validated['magnet_link'] = $request->input('magnet_link') ?: null;
+
+        // Subida o reemplazo de archivo .torrent (Local / R2)
+        if ($request->hasFile('torrent_file')) {
+            try {
+                $file = $request->file('torrent_file');
+                /** @var TorrentStorageService $storageService */
+                $storageService = app(TorrentStorageService::class);
+                $brandedFilename = $storageService->generateBrandedFilename(
+                    $validated['name'],
+                    $validated['version'] ?? null,
+                    $file->getClientOriginalName()
+                );
+                $binary = file_get_contents($file->getRealPath());
+                $stored = $storageService->storeTorrentBinary($binary, $brandedFilename, $validated['slug'], $validated['name']);
+
+                if ($application->torrent_file_path && $application->torrent_file_path !== $stored['file_path']) {
+                    Storage::disk('public')->delete($application->torrent_file_path);
+                }
+
+                $validated['torrent_file_path'] = $stored['file_path'];
+                $validated['torrent_url'] = $stored['public_url'];
+                $validated['has_torrent'] = true;
+
+                if (empty($validated['magnet_link']) && ! empty($stored['magnet_link'])) {
+                    $validated['magnet_link'] = $stored['magnet_link'];
+                }
+            } catch (\Throwable $e) {
+                Log::error('AdminController: Error al actualizar archivo torrent subido: '.$e->getMessage());
+            }
+        } elseif ($request->boolean('remove_torrent_file')) {
+            if ($application->torrent_file_path) {
+                Storage::disk('public')->delete($application->torrent_file_path);
+            }
+            $validated['torrent_file_path'] = null;
+            $validated['torrent_url'] = null;
+            if (empty($validated['magnet_link'])) {
+                $validated['has_torrent'] = false;
+            }
+        } elseif (! empty($application->torrent_file_path) && empty($validated['torrent_url'])) {
+            $validated['torrent_file_path'] = $application->torrent_file_path;
+            $validated['torrent_url'] = $application->torrent_url;
+        }
 
         // Parse custom download mirrors
         $mirrors = [];
@@ -311,6 +413,8 @@ class AdminController extends Controller
                     'changelog' => $request->input('changelog'),
                     'download_url' => $validated['download_url'] ?? null,
                     'download_mirrors' => $validated['download_mirrors'] ?? null,
+                    'torrent_url' => $validated['torrent_url'] ?? ($application->torrent_url ?? null),
+                    'torrent_file_path' => $validated['torrent_file_path'] ?? ($application->torrent_file_path ?? null),
                     'size' => $validated['size'] ?? null,
                     'is_current' => true,
                     'released_at' => now(),
@@ -323,6 +427,8 @@ class AdminController extends Controller
                         'changelog' => $request->input('changelog', $currentVersion->changelog),
                         'download_url' => $validated['download_url'] ?? $currentVersion->download_url,
                         'download_mirrors' => $validated['download_mirrors'] ?? $currentVersion->download_mirrors,
+                        'torrent_url' => $validated['torrent_url'] ?? $currentVersion->torrent_url,
+                        'torrent_file_path' => $validated['torrent_file_path'] ?? $currentVersion->torrent_file_path,
                         'size' => $validated['size'] ?? $currentVersion->size,
                     ]);
                 } else {
@@ -331,6 +437,8 @@ class AdminController extends Controller
                         'changelog' => $request->input('changelog'),
                         'download_url' => $validated['download_url'] ?? null,
                         'download_mirrors' => $validated['download_mirrors'] ?? null,
+                        'torrent_url' => $validated['torrent_url'] ?? ($application->torrent_url ?? null),
+                        'torrent_file_path' => $validated['torrent_file_path'] ?? ($application->torrent_file_path ?? null),
                         'size' => $validated['size'] ?? null,
                         'is_current' => true,
                         'released_at' => now(),

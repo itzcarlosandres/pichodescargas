@@ -911,8 +911,24 @@
                             </div>
 
                             <!-- Sección Torrent & Magnet P2P -->
-                            <div class="pt-4 border-t border-[#26211B] space-y-4" x-data="{ hasTorrent: {{ old('has_torrent', (isset($app) && $app->has_torrent) ? 1 : 0) ? 'true' : 'false' }} }">
-                                <div class="flex items-center justify-between p-3 rounded-xl bg-[#1A1612] border border-[#2B241C]">
+                            <div class="pt-4 border-t border-[#26211B] space-y-4"
+                                 x-data="{
+                                     hasTorrent: {{ old('has_torrent', (isset($app) && $app->has_torrent) ? 1 : 0) ? 'true' : 'false' }},
+                                     torrentFileName: '',
+                                     torrentFileSize: '',
+                                     removeTorrent: false,
+                                     handleTorrentFile(e) {
+                                         const file = e.target.files[0];
+                                         if (file) {
+                                             this.torrentFileName = file.name;
+                                             const sizeKB = (file.size / 1024).toFixed(1);
+                                             this.torrentFileSize = sizeKB > 1024 ? (sizeKB / 1024).toFixed(2) + ' MB' : sizeKB + ' KB';
+                                             this.hasTorrent = true;
+                                             this.removeTorrent = false;
+                                         }
+                                     }
+                                 }">
+                                <div class="flex items-center justify-between p-3 rounded-xl bg-[#1A1612] border border-[#2B241C] flex-wrap gap-2">
                                     <div class="flex items-center gap-2.5">
                                         <div class="w-7 h-7 rounded-lg bg-[#30D158]/20 text-[#30D158] flex items-center justify-center font-bold text-xs">
                                             ⚡
@@ -922,31 +938,145 @@
                                             <p class="text-[10px] text-[#8C847A]">Permite a los usuarios descargar vía archivo .torrent o Magnet Link</p>
                                         </div>
                                     </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" name="has_torrent" value="1" x-model="hasTorrent" class="sr-only peer">
-                                        <div class="w-10 h-5 bg-[#2B241C] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#30D158]"></div>
-                                    </label>
+                                    <div class="flex items-center gap-3">
+                                        @if($r2Active ?? false)
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/10 text-sky-400 border border-sky-500/30">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+                                                Cloudflare R2 Activo
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                                Almacenamiento Local (Servidor)
+                                            </span>
+                                        @endif
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" name="has_torrent" value="1" x-model="hasTorrent" class="sr-only peer">
+                                            <div class="w-10 h-5 bg-[#2B241C] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#30D158]"></div>
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <div x-show="hasTorrent" x-cloak class="space-y-3.5 pl-2 border-l-2 border-[#30D158]/40">
-                                    <!-- URL del Archivo .torrent -->
+                                <div x-show="hasTorrent" x-cloak class="space-y-4 pl-2 border-l-2 border-[#30D158]/40">
+                                    <!-- 1. Subir Archivo .torrent (Servidor Local / R2 Compatible) -->
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <label class="block text-xs font-semibold text-[#A39B91]">
+                                                Subir Archivo .torrent <span class="text-emerald-400 font-mono text-[11px] font-normal">(Almacenamiento Local / R2)</span>
+                                            </label>
+                                            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                                ✓ Recomendado
+                                            </span>
+                                        </div>
+
+                                        <!-- Dropzone / File Picker Container -->
+                                        <div class="relative border-2 border-dashed border-[#2B241C] hover:border-emerald-500/50 rounded-xl p-4 bg-[#14110E] transition-all group">
+                                            <input type="file"
+                                                   name="torrent_file"
+                                                   id="torrent_file_input"
+                                                   accept=".torrent,application/x-bittorrent"
+                                                   @change="handleTorrentFile($event)"
+                                                   class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+
+                                            <div class="flex items-center gap-3.5">
+                                                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                                    </svg>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center gap-2">
+                                                        <span>Subir archivo .torrent desde tu PC</span>
+                                                        <span class="text-[10px] font-normal text-[#8C847A]">(Haz clic o arrastra el archivo)</span>
+                                                    </p>
+                                                    <p class="text-[11px] text-[#8C847A] truncate mt-0.5">
+                                                        Se guarda en el servidor local (<code class="text-emerald-300">storage/torrents/</code>) con marca PichoDescargas. Compatible con R2 cuando lo actives.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Indicador de archivo seleccionado en vivo -->
+                                            <template x-if="torrentFileName">
+                                                <div class="mt-3 pt-3 border-t border-emerald-500/20 flex items-center justify-between text-xs bg-emerald-500/5 p-2 rounded-lg">
+                                                    <div class="flex items-center gap-2 truncate">
+                                                        <span class="text-emerald-400 font-bold">✓ Archivo listo:</span>
+                                                        <span class="font-mono text-white truncate" x-text="torrentFileName"></span>
+                                                        <span class="font-mono text-[10px] text-emerald-400/80" x-text="'(' + torrentFileSize + ')'"></span>
+                                                    </div>
+                                                    <span class="text-[10px] font-mono text-emerald-300 uppercase tracking-wider shrink-0">Se guardará local</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        @error('torrent_file')
+                                            <p class="text-danger text-xs mt-1">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+
+                                    <!-- Archivo Torrent Actual si ya existe -->
+                                    @if(isset($app) && ($app->torrent_file_path || $app->torrent_url))
+                                        @php
+                                            $isStoredOnR2 = str_contains($app->torrent_url ?? '', 'r2.cloudflarestorage.com') || str_contains($app->torrent_url ?? '', 'r2.dev');
+                                            $currentFilename = basename($app->torrent_file_path ?: parse_url($app->torrent_url, PHP_URL_PATH));
+                                            $fileDirectUrl = $app->torrent_url ?: ($app->torrent_file_path ? Storage::disk('public')->url($app->torrent_file_path) : null);
+                                        @endphp
+                                        <div class="p-3.5 rounded-xl bg-[#171411] border border-[#2B241C] space-y-2.5" x-show="!removeTorrent">
+                                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                                <div class="flex items-center gap-2.5">
+                                                    <span class="text-base">📁</span>
+                                                    <div>
+                                                        <p class="text-xs font-bold text-white flex items-center gap-2">
+                                                            <span>Torrent actual en sistema:</span>
+                                                            <span class="font-mono text-sky-400 text-[11px]">{{ $currentFilename ?: 'archivo.torrent' }}</span>
+                                                        </p>
+                                                        <p class="text-[10px] text-[#8C847A] mt-0.5">
+                                                            Ubicación: 
+                                                            @if($isStoredOnR2)
+                                                                <span class="text-sky-400 font-bold">Cloudflare R2 (Nube)</span>
+                                                            @elseif($app->torrent_file_path)
+                                                                <span class="text-emerald-400 font-bold">Servidor Local (public/storage/{{ $app->torrent_file_path }})</span>
+                                                            @else
+                                                                <span class="text-[#A39B91]">Enlace Remoto / Externo</span>
+                                                            @endif
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex items-center gap-2.5">
+                                                    @if($fileDirectUrl)
+                                                        <a href="{{ $fileDirectUrl }}" target="_blank" download
+                                                           class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white text-[11px] font-mono border border-white/10 transition-colors">
+                                                            <svg class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                            <span>Descargar / Probar</span>
+                                                        </a>
+                                                    @endif
+                                                    <label class="inline-flex items-center gap-1.5 text-[11px] text-red-400 hover:text-red-300 cursor-pointer ml-1">
+                                                        <input type="checkbox" name="remove_torrent_file" value="1" x-model="removeTorrent" class="rounded bg-[#2B241C] border-[#3D3328] text-red-500 focus:ring-0">
+                                                        <span>Eliminar torrent</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <!-- 2. URL del Archivo .torrent (Opcional / Remoto / R2) -->
                                     <div>
-                                        <label class="block text-xs font-semibold text-[#A39B91] mb-1.5">
-                                            URL del Archivo .torrent (Servidor R2 / Almacenamiento)
+                                        <label class="block text-xs font-semibold text-[#A39B91] mb-1.5 flex items-center justify-between">
+                                            <span>URL del Archivo .torrent (Opcional si subes el archivo arriba)</span>
+                                            <span class="text-[10px] text-[#8C847A] font-mono">Auto o Manual</span>
                                         </label>
                                         <input type="text"
                                                name="torrent_url"
                                                value="{{ old('torrent_url', $app->torrent_url ?? '') }}"
                                                placeholder="https://pub-r2.pichodescargas.com/torrents/app.torrent o /storage/torrents/..."
                                                class="input w-full text-xs font-mono">
-                                        <p class="text-[11px] text-[#6B635A] mt-1">El scraper lo sube automáticamente a R2. También puedes colocar una URL manual.</p>
+                                        <p class="text-[11px] text-[#6B635A] mt-1">Si subes el archivo arriba se completará automáticamente. También puedes pegar una URL remota de R2 o CDN.</p>
                                     </div>
 
-                                    <!-- Enlace Magnet -->
+                                    <!-- 3. Enlace Magnet -->
                                     <div>
                                         <label class="block text-xs font-semibold text-[#A39B91] mb-1.5 flex items-center justify-between">
                                             <span>Enlace Magnet (magnet:?xt=urn:btih:...)</span>
-                                            <span class="text-[10px] text-[#30D158] font-bold">Auto-extraído o Manual</span>
+                                            <span class="text-[10px] text-[#30D158] font-bold">Auto-extraído al subir torrent</span>
                                         </label>
                                         <div class="relative">
                                             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm select-none">🧲</span>
@@ -956,7 +1086,18 @@
                                                    placeholder="magnet:?xt=urn:btih:40_caracteres_hash&dn=NombreApp&tr=..."
                                                    class="input w-full pl-9 text-xs font-mono">
                                         </div>
-                                        <p class="text-[11px] text-[#6B635A] mt-1">Se extrae automáticamente de los torrents importados. También puedes pegarlo manualmente aquí.</p>
+                                        <p class="text-[11px] text-[#6B635A] mt-1">Si subes un archivo .torrent arriba y dejas este campo vacío, el hash y trackers se extraerán automáticamente.</p>
+                                    </div>
+
+                                    <!-- Banner informativo de compatibilidad Local -> R2 -->
+                                    <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-xs text-[#A39B91] flex items-start gap-2.5">
+                                        <span class="text-emerald-400 text-sm mt-0.5">💡</span>
+                                        <div>
+                                            <p class="text-white font-semibold">Almacenamiento Local listo para R2</p>
+                                            <p class="text-[11px] text-[#8C847A] mt-0.5">
+                                                Los archivos torrent subidos se guardan localmente en tu servidor. Cuando actives Cloudflare R2 más adelante, el sistema continuará sirviendo y migrará los torrents automáticamente sin perder ningún enlace.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

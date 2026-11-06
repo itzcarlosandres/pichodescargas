@@ -128,7 +128,8 @@ class TorrentStorageService
         $magnetLink = $this->extractMagnetFromTorrent($binary, $displayName ?: $slug);
 
         $preferredDisk = Setting::get('torrentmac_storage_disk', 'local');
-        $useR2 = ($preferredDisk === 'r2' || $this->r2Service->isConfigured());
+        $r2Enabled = (bool) Setting::get('r2_enabled', $preferredDisk === 'r2');
+        $useR2 = ($preferredDisk === 'r2') && $r2Enabled && $this->r2Service->isConfigured();
 
         if ($useR2) {
             $r2PublicUrl = $this->r2Service->putObject($relativePath, $binary, 'application/x-bittorrent');
@@ -173,8 +174,9 @@ class TorrentStorageService
         $brandedFilename = $this->generateBrandedFilename($appName, $verString, $remoteUrl);
         $expectedRelativePath = "torrents/{$application->slug}/{$brandedFilename}";
 
-        $preferredDisk = Setting::get('torrentmac_storage_disk', 'public');
-        $useR2 = ($preferredDisk === 'r2') && $this->r2Service->isConfigured();
+        $preferredDisk = Setting::get('torrentmac_storage_disk', 'local');
+        $r2Enabled = (bool) Setting::get('r2_enabled', $preferredDisk === 'r2');
+        $useR2 = ($preferredDisk === 'r2') && $r2Enabled && $this->r2Service->isConfigured();
 
         // If file already exists and not forced, check its storage location
         if (! $force && ! empty($existingPath)) {

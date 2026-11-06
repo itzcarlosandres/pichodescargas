@@ -7,7 +7,9 @@ use App\Models\Category;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdminTest extends TestCase
@@ -288,5 +290,43 @@ class AdminTest extends TestCase
 
         $response->assertSessionHasNoErrors();
         $this->assertEquals(18, Setting::get('logo_size'));
+    }
+
+    public function test_admin_can_store_application_with_uploaded_torrent_file(): void
+    {
+        Storage::fake('public');
+        Setting::set('torrentmac_storage_disk', 'local', 'storage');
+        Setting::set('r2_enabled', '0', 'storage');
+
+        $admin = $this->createAdminUser();
+        $category = Category::create([
+            'name' => 'Mac Apps',
+            'slug' => 'mac-apps',
+            'is_active' => true,
+        ]);
+
+        $bencodedSampleTorrent = 'd8:announce38:udp://tracker.opentrackr.org:1337/announce4:infod6:lengthi12345e4:name15:Final Cut Pro Xee';
+        $uploadedFile = UploadedFile::fake()->createWithContent(
+            'Final_Cut_Pro_X.torrent',
+            $bencodedSampleTorrent
+        );
+
+        $response = $this->actingAs($admin)->post(route('admin.applications.store'), [
+            'name' => 'Final Cut Pro',
+            'category_id' => $category->id,
+            'version' => '11.0',
+            'torrent_file' => $uploadedFile,
+            'published' => true,
+        ]);
+
+        $response->assertRedirect(route('admin.applications'));
+        $app = Application::where('name', 'Final Cut Pro')->first();
+        $this->assertNotNull($app);
+        $this->assertTrue((bool) $app->has_torrent);
+        $this->assertNotNull($app->torrent_file_path);
+        $this->assertStringContainsString('PichoDescargas', $app->torrent_file_path);
+        Storage::disk('public')->assertExists($app->torrent_file_path);
+        $this->assertNotNull($app->magnet_link);
+        $this->assertStringStartsWith('magnet:?xt=urn:btih:', $app->magnet_link);
     }
 }
