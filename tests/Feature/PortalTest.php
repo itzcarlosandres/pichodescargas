@@ -514,4 +514,65 @@ class PortalTest extends TestCase
         $redirect2 = $this->get('/category/movies');
         $redirect2->assertRedirect('/category/peliculas-gratis');
     }
+
+    public function test_category_sections_on_home_display_newly_published_and_recently_updated_apps_first(): void
+    {
+        $category = Category::firstOrCreate(
+            ['slug' => 'programas'],
+            [
+                'name' => 'Programas',
+                'description' => 'Programas para PC',
+                'icon' => 'cpu',
+                'sort_order' => 1,
+                'is_active' => true,
+            ]
+        );
+
+        $oldApp = Application::create([
+            'category_id' => $category->id,
+            'name' => 'Older Software Alpha',
+            'slug' => 'older-software-alpha',
+            'version' => '1.0',
+            'published' => true,
+        ]);
+        Application::where('id', $oldApp->id)->update([
+            'created_at' => now()->subDays(10),
+            'updated_at' => now()->subDays(10),
+        ]);
+
+        $newApp = Application::create([
+            'category_id' => $category->id,
+            'name' => 'Brand New Software Beta',
+            'slug' => 'brand-new-software-beta',
+            'version' => '2.0',
+            'published' => true,
+        ]);
+        Application::where('id', $newApp->id)->update([
+            'created_at' => now()->subHours(2),
+            'updated_at' => now()->subHours(2),
+        ]);
+
+        $response = $this->get(route('home'));
+        $response->assertStatus(200);
+        $response->assertSee('Brand New Software Beta');
+        $response->assertSee('Older Software Alpha');
+
+        // Now older app gets updated with a patch / new version or admin update
+        $oldApp->update([
+            'version' => '1.1',
+        ]);
+        $oldApp->touch(); // Updated now
+
+        $updatedResponse = $this->get(route('home'));
+        $updatedResponse->assertStatus(200);
+
+        // In the HTML of the response, Older Software Alpha now appears before Brand New Software Beta
+        $html = $updatedResponse->getContent();
+        $posOld = strpos($html, 'Older Software Alpha');
+        $posNew = strpos($html, 'Brand New Software Beta');
+
+        $this->assertNotFalse($posOld);
+        $this->assertNotFalse($posNew);
+        $this->assertLessThan($posNew, $posOld, 'The recently updated application should appear before the older application in Home');
+    }
 }

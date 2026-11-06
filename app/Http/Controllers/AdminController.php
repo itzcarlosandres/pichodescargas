@@ -399,6 +399,7 @@ class AdminController extends Controller
 
         $previousVersion = $application->version;
         $application->update($validated);
+        $application->touch(); // Actualiza siempre updated_at para que reaparezca inmediatamente en Home
 
         if (! empty($validated['version'])) {
             $isNewVersion = ! empty($previousVersion) && $validated['version'] !== $previousVersion;

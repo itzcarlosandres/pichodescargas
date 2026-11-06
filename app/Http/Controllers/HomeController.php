@@ -76,7 +76,7 @@ class HomeController extends Controller
         $sections = Category::whereIn('slug', $categoryOrder)
             ->active()
             ->with(['applications' => function ($q) {
-                $q->published()->latest('updated_at')->limit(6);
+                $q->published()->latest('updated_at')->latest('id')->limit(6);
             }])
             ->get()
             ->sortBy(function ($cat) use ($categoryOrder) {
@@ -88,7 +88,7 @@ class HomeController extends Controller
             $sections = Category::active()
                 ->whereHas('applications')
                 ->with(['applications' => function ($q) {
-                    $q->published()->latest('updated_at')->limit(6);
+                    $q->published()->latest('updated_at')->latest('id')->limit(6);
                 }])
                 ->limit(5)
                 ->get();
@@ -106,10 +106,16 @@ class HomeController extends Controller
 
     public function category(Category $category)
     {
-        $applications = Application::published()
-            ->where('category_id', $category->id)
-            ->orderBy('downloads', 'desc')
-            ->paginate(12);
+        $sort = request('sort', 'latest');
+        $query = Application::published()->where('category_id', $category->id);
+
+        if ($sort === 'popular' || $sort === 'downloads') {
+            $query->orderBy('downloads', 'desc');
+        } else {
+            $query->latest('updated_at')->latest('id');
+        }
+
+        $applications = $query->paginate(12);
 
         return view('pages.category', compact('category', 'applications'));
     }

@@ -23,6 +23,13 @@ class ApplicationVersion extends Model
         'released_at',
     ];
 
+    /**
+     * All of the relationships to be touched on save.
+     *
+     * @var array
+     */
+    protected $touches = ['application'];
+
     protected function casts(): array
     {
         return [

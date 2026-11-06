@@ -298,9 +298,7 @@ class CybermaniaImporter
 
         if ($application) {
             $application->update($payload);
-            if ($isVersionUpgrade) {
-                $application->touch();
-            }
+            $application->touch(); // Siempre actualiza updated_at para que vuelva a salir en Home al actualizarse
         } else {
             $payload['slug'] = $appData['slug'];
             $application = Application::create($payload);
