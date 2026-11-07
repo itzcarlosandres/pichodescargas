@@ -1455,19 +1455,19 @@
                     <strong class="text-white capitalize" x-text="mejortorrentQualityName"></strong>
                 </div>
                 <span class="text-xs text-[#8C847A] font-mono" x-show="mejortorrentApps.length > 0">
-                    Mostrando <strong class="text-white" x-text="mejortorrentApps.length"></strong> películas
+                    Mostrando <strong class="text-white" x-text="mejortorrentApps.length"></strong> <span x-text="mejortorrentContentType === 'series' ? 'series' : 'películas'"></span>
                 </span>
             </div>
 
             <!-- Loading Skeleton -->
             <div x-show="mejortorrentLoading && mejortorrentApps.length === 0"
-                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 py-8">
-                <template x-for="i in 12" :key="i">
-                    <div class="bg-[#1A1612] border border-[#262019] rounded-2xl p-4 animate-pulse space-y-3">
+                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 min-[1100px]:grid-cols-7 xl:grid-cols-7 2xl:grid-cols-7 gap-2.5 sm:gap-3 py-6">
+                <template x-for="i in 14" :key="i">
+                    <div class="bg-[#1A1612] border border-[#262019] rounded-2xl p-2.5 animate-pulse space-y-2">
                         <div class="w-full aspect-[2/3] bg-[#262019] rounded-xl mx-auto"></div>
-                        <div class="h-4 bg-[#262019] rounded w-3/4 mx-auto"></div>
-                        <div class="h-3 bg-[#262019] rounded w-1/2 mx-auto"></div>
-                        <div class="h-8 bg-[#262019] rounded-xl w-full"></div>
+                        <div class="h-3.5 bg-[#262019] rounded w-3/4 mx-auto"></div>
+                        <div class="h-2.5 bg-[#262019] rounded w-1/2 mx-auto"></div>
+                        <div class="h-7 bg-[#262019] rounded-lg w-full"></div>
                     </div>
                 </template>
             </div>
@@ -1476,19 +1476,19 @@
             <div x-show="!mejortorrentLoading && mejortorrentApps.length === 0"
                  class="text-center py-12 space-y-3">
                 <span class="text-4xl">🎬</span>
-                <p class="text-sm text-[#8C847A]">No se han cargado películas del catálogo de MejorTorrent / DonTorrent aún.</p>
+                <p class="text-sm text-[#8C847A]" x-text="mejortorrentContentType === 'series' ? 'No se han cargado series del catálogo de MejorTorrent / DonTorrent aún.' : 'No se han cargado películas del catálogo de MejorTorrent / DonTorrent aún.'"></p>
                 <button type="button" @click="loadMejortorrent(1)" class="px-4 py-2 rounded-xl bg-[#E11D48] text-white text-xs font-bold hover:bg-[#BE123C] transition-colors cursor-pointer">
                     Cargar Catálogo Inicial
                 </button>
             </div>
 
-            <!-- MejorTorrent Movie Cards Grid -->
+            <!-- MejorTorrent Movie & Series Cards Grid (7 Columnas Compactas) -->
             <div x-show="mejortorrentApps.length > 0"
-                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 min-[1100px]:grid-cols-7 xl:grid-cols-7 2xl:grid-cols-7 gap-2.5 sm:gap-3"
                  :class="mejortorrentLoading ? 'opacity-50 pointer-events-none' : ''">
                 <template x-for="movie in mejortorrentApps" :key="movie.url">
-                    <div class="bg-[#181410] border rounded-2xl p-3 flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-xl group relative"
-                         :class="movie.is_imported ? 'border-success/40 hover:border-success/60' : 'border-[#2B231B] hover:border-[#FB7185]/50'">
+                    <div class="bg-[#181410] border rounded-2xl p-2.5 flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-xl group relative"
+                         :class="movie.is_imported ? 'border-success/40 hover:border-success/60' : (mejortorrentContentType === 'series' ? 'border-[#2B231B] hover:border-purple-500/50' : 'border-[#2B231B] hover:border-[#FB7185]/50')">
                         <!-- Top Badges & Poster -->
                         <div>
                             <div class="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-[#1A1612] border border-[#262019] flex items-center justify-center">
@@ -1505,7 +1505,7 @@
                                 </div>
 
                                 <!-- Status Badge Top Right: EN PORTAL -->
-                                <div class="absolute top-2 right-2 flex flex-col items-end gap-1">
+                                <div class="absolute top-1.5 right-1.5 flex flex-col items-end gap-1">
                                     <template x-if="movie.is_imported">
                                         <span class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase text-white shadow-md font-mono backdrop-blur-sm"
                                               :class="mejortorrentContentType === 'series' ? 'bg-purple-600/90' : 'bg-success/90 !text-black'"
@@ -1515,7 +1515,7 @@
                                 </div>
 
                                 <!-- Quality Pill Top Left -->
-                                <div class="absolute top-2 left-2">
+                                <div class="absolute top-1.5 left-1.5">
                                     <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase bg-black/80 border backdrop-blur-sm font-mono"
                                           :class="mejortorrentContentType === 'series' ? 'text-purple-300 border-purple-500/30' : 'text-rose-300 border-rose-500/30'"
                                           x-text="movie.quality || (mejortorrentContentType === 'series' ? 'HDTV' : 'HD')"></span>
@@ -1523,21 +1523,21 @@
                             </div>
 
                             <!-- Title -->
-                            <h4 class="text-[13px] font-bold text-white leading-snug line-clamp-2 mt-2.5 transition-colors min-h-[2.35rem]"
+                            <h4 class="text-xs sm:text-[12px] font-bold text-white leading-tight line-clamp-2 mt-2 transition-colors min-h-[2.1rem]"
                                 :class="mejortorrentContentType === 'series' ? 'group-hover:text-purple-400' : 'group-hover:text-[#FB7185]'"
                                 :title="movie.title" x-text="movie.title"></h4>
 
                             <!-- Quality & Category Meta -->
-                            <div class="mt-1 flex items-center justify-between text-[10px] font-mono text-[#8C847A]">
-                                <span class="font-bold" :class="mejortorrentContentType === 'series' ? 'text-purple-400' : 'text-[#FB7185]'" x-text="movie.quality || (mejortorrentContentType === 'series' ? 'HDTV' : '1080p')"></span>
-                                <span class="truncate max-w-[80px]" x-text="mejortorrentContentType === 'series' ? 'Series TV' : 'Películas'"></span>
+                            <div class="mt-1 flex items-center justify-between text-[9.5px] font-mono text-[#8C847A]">
+                                <span class="font-bold truncate max-w-[55px]" :class="mejortorrentContentType === 'series' ? 'text-purple-400' : 'text-[#FB7185]'" x-text="movie.quality || (mejortorrentContentType === 'series' ? 'HDTV' : '1080p')"></span>
+                                <span class="truncate max-w-[65px]" x-text="mejortorrentContentType === 'series' ? 'Series TV' : 'Películas'"></span>
                             </div>
                         </div>
 
                         <!-- 1-Click Import Action Button -->
-                        <div class="mt-3 pt-2.5 border-t border-[#262019]">
+                        <div class="mt-2.5 pt-2 border-t border-[#262019]">
                             <button type="button" @click="importMejortorrentCard(movie)" :disabled="mejortorrentImportingUrl === movie.url"
-                                    class="w-full py-2 px-2 rounded-xl text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-90"
+                                    class="w-full py-1.5 px-1.5 rounded-lg text-[11px] font-black shadow-lg transition-all flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-90"
                                     :class="mejortorrentImportingUrl === movie.url 
                                         ? (mejortorrentContentType === 'series' ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white cursor-wait animate-pulse' : 'bg-gradient-to-r from-[#BE123C] to-[#E11D48] text-white cursor-wait animate-pulse')
                                         : (movie.is_imported 
@@ -1547,12 +1547,12 @@
                                                 : 'bg-gradient-to-r from-[#E11D48] to-[#FB7185] hover:from-[#BE123C] hover:to-[#E11D48] text-white shadow-rose-500/20 cursor-pointer'))">
 
                                 <!-- Loading Spinner -->
-                                <svg x-show="mejortorrentImportingUrl === movie.url" class="animate-spin w-3.5 h-3.5 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                                <svg x-show="mejortorrentImportingUrl === movie.url" class="animate-spin w-3 h-3 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
 
-                                <span x-show="mejortorrentImportingUrl !== movie.url" class="text-sm" x-text="movie.is_imported ? '✓' : '+'"></span>
+                                <span x-show="mejortorrentImportingUrl !== movie.url" class="text-xs" x-text="movie.is_imported ? '✓' : '+'"></span>
 
                                 <span x-text="mejortorrentImportingUrl === movie.url 
                                     ? 'Importando...' 
