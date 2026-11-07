@@ -319,18 +319,26 @@ class Application extends Model
 
         $pcAndroidCategoryIds = Category::whereIn('slug', ['programas', 'juegos-pc', 'apps-android'])->pluck('id')->all();
         $macCategoryIds = Category::whereIn('slug', ['mac-apps'])->pluck('id')->all();
+        $movieCategoryIds = Category::whereIn('slug', ['peliculas-gratis'])->pluck('id')->all();
 
-        // Balanced 3-way split quotas (e.g. 20 -> 7 Torrent, 7 Mac DDL, 6 PC/Android)
-        $quota1 = (int) ceil($limit / 3);
-        $quota2 = (int) ceil(($limit - $quota1) / 2);
-        $quota3 = max(1, $limit - $quota1 - $quota2);
+        // Check if movies are in draft queue to decide 4-way vs 3-way split
+        $hasMovieDrafts = ! empty($movieCategoryIds) && static::where('published', false)->whereIn('category_id', $movieCategoryIds)->exists();
+        $ways = $hasMovieDrafts ? 4 : 3;
 
-        // 1. Up to quota1 Torrent drafts (oldest first)
-        $torrentDrafts = static::where('published', false)
-            ->where('has_torrent', true)
-            ->orderBy('id', 'asc')
-            ->limit($quota1)
-            ->get();
+        // Balanced split quotas (e.g. 20 with movies -> 5 Torrent Mac, 5 DDL Mac, 5 PC/Android, 5 Películas)
+        $quota1 = (int) ceil($limit / $ways);
+        $rem1 = max(0, $limit - $quota1);
+        $quota2 = (int) ceil($rem1 / ($ways - 1));
+        $rem2 = max(0, $rem1 - $quota2);
+        $quota3 = $hasMovieDrafts ? (int) ceil($rem2 / 2) : $rem2;
+        $quota4 = $hasMovieDrafts ? max(0, $rem2 - $quota3) : 0;
+
+        // 1. Up to quota1 Torrent drafts (oldest first, excluding movies if movies handled separately)
+        $torrentQuery = static::where('published', false)->where('has_torrent', true);
+        if ($hasMovieDrafts) {
+            $torrentQuery->whereNotIn('category_id', $movieCategoryIds);
+        }
+        $torrentDrafts = $torrentQuery->orderBy('id', 'asc')->limit($quota1)->get();
 
         $selectedIds = $torrentDrafts->pluck('id')->all();
 
@@ -392,7 +400,19 @@ class Application extends Model
             $selectedIds = array_merge($selectedIds, $pcAndroidDrafts->pluck('id')->all());
         }
 
-        // 4. Fallback: If not reached $limit, fill with any remaining oldest available drafts regardless of source
+        // 4. Up to quota4 Movie drafts (oldest first)
+        $movieDrafts = collect();
+        if ($hasMovieDrafts && $quota4 > 0) {
+            $movieDrafts = static::where('published', false)
+                ->whereIn('category_id', $movieCategoryIds)
+                ->whereNotIn('id', $selectedIds)
+                ->orderBy('id', 'asc')
+                ->limit($quota4)
+                ->get();
+            $selectedIds = array_merge($selectedIds, $movieDrafts->pluck('id')->all());
+        }
+
+        // 5. Fallback: If not reached $limit, fill with any remaining oldest available drafts regardless of source
         $remainderNeeded = $limit - count($selectedIds);
         $fillDrafts = collect();
         if ($remainderNeeded > 0) {
@@ -403,7 +423,7 @@ class Application extends Model
                 ->get();
         }
 
-        $allDrafts = $torrentDrafts->concat($ddlDrafts)->concat($pcAndroidDrafts)->concat($fillDrafts);
+        $allDrafts = $torrentDrafts->concat($ddlDrafts)->concat($pcAndroidDrafts)->concat($movieDrafts)->concat($fillDrafts);
 
         if ($allDrafts->isNotEmpty()) {
             $now = now();
@@ -419,9 +439,10 @@ class Application extends Model
 
         return [
             'published_count' => $allDrafts->count(),
-            'torrent_count' => $allDrafts->where('has_torrent', true)->count(),
-            'ddl_count' => $allDrafts->where('has_torrent', false)->whereNotIn('category_id', $pcAndroidCategoryIds)->count(),
+            'torrent_count' => $allDrafts->where('has_torrent', true)->whereNotIn('category_id', $movieCategoryIds)->count(),
+            'ddl_count' => $allDrafts->where('has_torrent', false)->whereNotIn('category_id', array_merge($pcAndroidCategoryIds, $movieCategoryIds))->count(),
             'pc_android_count' => $allDrafts->whereIn('category_id', $pcAndroidCategoryIds)->count(),
+            'movies_count' => $allDrafts->whereIn('category_id', $movieCategoryIds)->count(),
             'apps' => $allDrafts,
         ];
     }

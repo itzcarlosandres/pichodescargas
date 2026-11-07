@@ -8,6 +8,7 @@ use App\Services\LinkHealth\AutoLinkHealerService;
 use App\Services\LinkHealth\LinkHealthCheckerService;
 use App\Services\Scraper\CybermaniaImporter;
 use App\Services\Scraper\HaxmacImporter;
+use App\Services\Scraper\MejortorrentImporter;
 use App\Services\Scraper\TorrentmacImporter;
 use App\Services\Telegram\TelegramBotService;
 use Illuminate\Foundation\Inspiring;
@@ -18,7 +19,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desactivado en la configuración} {--fill-drafts=0 : Rellenar la cola con N borradores del catálogo}', function (HaxmacImporter $haxmac, TorrentmacImporter $torrentmac, CybermaniaImporter $cybermania) {
+Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desactivado en la configuración} {--fill-drafts=0 : Rellenar la cola con N borradores del catálogo}', function (HaxmacImporter $haxmac, TorrentmacImporter $torrentmac, CybermaniaImporter $cybermania, MejortorrentImporter $mejortorrent) {
     $isEnabled = filter_var(Setting::get('scraper_cron_enabled', true), FILTER_VALIDATE_BOOLEAN) || $this->option('force');
 
     if (! $isEnabled) {
@@ -32,28 +33,35 @@ Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desa
 
     $torrentEnabled = filter_var(Setting::get('torrentmac_cron_enabled', true), FILTER_VALIDATE_BOOLEAN);
     $cyberEnabled = filter_var(Setting::get('cybermania_cron_enabled', true), FILTER_VALIDATE_BOOLEAN);
+    $mejortorrentEnabled = filter_var(Setting::get('mejortorrent_cron_enabled', true), FILTER_VALIDATE_BOOLEAN);
 
-    // 1. Cálculo de cuotas equitativas para los 3 scrapers (ej. 20 -> DDL: 7, Torrent: 7, PC/Android: 6)
-    $activeScrapers = 1 + ($torrentEnabled ? 1 : 0) + ($cyberEnabled ? 1 : 0);
+    // 1. Cálculo de cuotas equitativas para los 4 scrapers (ej. 30 -> DDL: 8, Torrent: 8, PC/Android: 8, Películas: 6)
+    $activeScrapers = 1 + ($torrentEnabled ? 1 : 0) + ($cyberEnabled ? 1 : 0) + ($mejortorrentEnabled ? 1 : 0);
     $ddlQuota = (int) ceil($limit / $activeScrapers);
-    $remainingAfterDdl = max(0, $limit - $ddlQuota);
+    $remaining = max(0, $limit - $ddlQuota);
 
-    if ($torrentEnabled && $cyberEnabled) {
-        $torrentQuota = (int) ceil($remainingAfterDdl / 2);
-        $cyberQuota = max(0, $remainingAfterDdl - $torrentQuota);
-    } elseif ($torrentEnabled) {
-        $torrentQuota = $remainingAfterDdl;
-        $cyberQuota = 0;
-    } elseif ($cyberEnabled) {
-        $torrentQuota = 0;
-        $cyberQuota = $remainingAfterDdl;
-    } else {
-        $ddlQuota = $limit;
-        $torrentQuota = 0;
-        $cyberQuota = 0;
+    $nonDdlScrapers = ($torrentEnabled ? 1 : 0) + ($cyberEnabled ? 1 : 0) + ($mejortorrentEnabled ? 1 : 0);
+    $torrentQuota = 0;
+    $cyberQuota = 0;
+    $movieQuota = 0;
+
+    if ($nonDdlScrapers > 0) {
+        if ($torrentEnabled) {
+            $torrentQuota = (int) ceil($remaining / $nonDdlScrapers);
+            $remaining = max(0, $remaining - $torrentQuota);
+            $nonDdlScrapers--;
+        }
+        if ($cyberEnabled && $nonDdlScrapers > 0) {
+            $cyberQuota = (int) ceil($remaining / $nonDdlScrapers);
+            $remaining = max(0, $remaining - $cyberQuota);
+            $nonDdlScrapers--;
+        }
+        if ($mejortorrentEnabled) {
+            $movieQuota = $remaining;
+        }
     }
 
-    $this->info("🎯 Límite Global: {$limit} programas. Cuotas asignadas -> DDL (HaxMac): {$ddlQuota}, Torrent (TorrentMac): {$torrentQuota}, PC/Android (CyberMania): {$cyberQuota}");
+    $this->info("🎯 Límite Global: {$limit} aportes. Cuotas -> DDL (HaxMac): {$ddlQuota}, Torrent (TorrentMac): {$torrentQuota}, PC/Android: {$cyberQuota}, Películas: {$movieQuota}");
 
     // 2. Si se solicita rellenar borradores manualmente o la cola está seca en modo goteo
     $requestedFill = (int) $this->option('fill-drafts');
@@ -62,10 +70,11 @@ Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desa
 
     if ($fillNeeded > 0) {
         $part = (int) ceil($fillNeeded / max(1, $activeScrapers));
-        $this->info("Rellenando Cola Draft con {$fillNeeded} programas del catálogo histórico (página HaxMac: ".Setting::get('scraper_haxmac_backlog_page', 4).', TorrentMac: '.Setting::get('scraper_torrentmac_backlog_page', 4).')...');
+        $this->info("Rellenando Cola Draft con {$fillNeeded} aportes del catálogo histórico...");
         $bHax = $haxmac->importBacklogBatch($part, true, true);
         $bTor = $torrentEnabled ? $torrentmac->importBacklogBatch($part, true, true) : ['imported' => 0];
-        $totalBacklog = ($bHax['imported'] ?? 0) + ($bTor['imported'] ?? 0);
+        $bMov = $mejortorrentEnabled ? $mejortorrent->importBacklogBatch($part, true, true) : ['imported' => 0];
+        $totalBacklog = ($bHax['imported'] ?? 0) + ($bTor['imported'] ?? 0) + ($bMov['imported'] ?? 0);
         $this->info("✓ Cola Draft reabastecida: +{$totalBacklog} borradores. Total en cola: ".Application::where('published', false)->count());
     }
 
@@ -112,9 +121,30 @@ Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desa
         $this->info("✓ CyberMania completado: {$cyberImported} nuevos, {$cyberResult['updated']} actualizados.");
     }
 
+    // 3d. MejorTorrent / DonTorrent (Películas & Series -> categoría peliculas-gratis & series-tv)
+    $movieResult = ['imported' => 0, 'updated' => 0];
+    if ($mejortorrentEnabled) {
+        $movieTarget = $movieQuota + $reallocatedPool;
+        $reallocatedPool = 0;
+        $this->info("Iniciando sincronización Películas & Series Torrent (MejorTorrent/DonTorrent, cuota: {$movieTarget})...");
+
+        $seriesTarget = max(1, (int) floor($movieTarget / 3));
+        $moviesTarget = max(1, $movieTarget - $seriesTarget);
+
+        $movieResult = $mejortorrent->syncLatestMovies(true, $moviesTarget, 3, 'all');
+        $seriesResult = $mejortorrent->syncLatestSeries($seriesTarget, 'all');
+
+        $movieImported = (int) ($movieResult['imported'] ?? 0) + (int) ($seriesResult['imported'] ?? 0);
+        if ($movieImported < $movieTarget) {
+            $reallocatedPool += ($movieTarget - $movieImported);
+        }
+        Setting::set('mejortorrent_last_sync', now()->format('Y-m-d H:i:s'), 'scraper');
+        $this->info("✓ Películas & Series completado: {$movieResult['imported']} películas, {$seriesResult['imported']} series.");
+    }
+
     // 4. Si no hay modo goteo y no se alcanzaron novedades suficientes, rellenar el déficit desde el archivo
     if (! $dripMode) {
-        $totalNew = $ddlImported + ($torrentResult['new_imported'] ?? 0) + ($cyberResult['imported'] ?? 0);
+        $totalNew = $ddlImported + ($torrentResult['new_imported'] ?? 0) + ($cyberResult['imported'] ?? 0) + ($movieResult['imported'] ?? 0);
         $deficit = $limit - $totalNew;
         if ($deficit > 0) {
             $halfDeficit = (int) ceil($deficit / 2);
@@ -124,11 +154,11 @@ Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desa
             $this->info("✓ Publicados desde archivo: +{$haxDirect['imported']} DDL, +{$torDirect['imported']} Torrent.");
         }
     } else {
-        // 5. Goteo de drafts (publicación escalonada equilibrada 3-way)
+        // 5. Goteo de drafts (publicación escalonada equilibrada multi-stream)
         $dripResult = Application::releaseDripBatch($limit);
         if ($dripResult['published_count'] > 0) {
             $remaining = Application::where('published', false)->count();
-            $this->info("✓ Goteo Draft: {$dripResult['published_count']} apps publicadas ({$dripResult['torrent_count']} Torrent, {$dripResult['ddl_count']} DDL, {$dripResult['pc_android_count']} PC/Android). Quedan {$remaining} en cola draft.");
+            $this->info("✓ Goteo Draft: {$dripResult['published_count']} aportes publicados ({$dripResult['torrent_count']} Torrent Mac, {$dripResult['ddl_count']} DDL Mac, {$dripResult['pc_android_count']} PC/Android, {$dripResult['movies_count']} Películas). Quedan {$remaining} en cola draft.");
         }
     }
 

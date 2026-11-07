@@ -57,6 +57,7 @@
                     <a href="{{ route('category', 'apps-android') }}">Android Apps</a>
                     <a href="{{ route('category', 'juegos-pc') }}">PC Games</a>
                     <a href="{{ route('category', 'peliculas-gratis') }}">Free Movies</a>
+                    <a href="{{ route('category', 'series-tv') }}">Series TV</a>
                     <a href="{{ route('popular') }}">Top Downloads</a>
                 </div>
             </div>
@@ -120,6 +121,12 @@
                     'border' => 'border-rose-500/20',
                     'tag' => 'CINE & STREAMING',
                     'text' => 'Full HD movies, releases and cinema streams.',
+                ],
+                'series-tv' => [
+                    'dot' => 'bg-violet-400 shadow-violet-400/50',
+                    'border' => 'border-violet-500/20',
+                    'tag' => 'SERIES & TEMPORADAS',
+                    'text' => 'Full TV series, complete seasons and HD episodes.',
                 ],
             ];
         @endphp

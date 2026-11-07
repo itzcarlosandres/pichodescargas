@@ -185,6 +185,17 @@
                         </div>
                         <span class="text-neutral-400 group-hover:translate-x-0.5 transition-transform text-xs">→</span>
                     </a>
+
+                    <a href="{{ route('category', 'series-tv') }}" class="group flex items-center justify-between p-2 rounded-xl hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border border-transparent hover:border-slate-200 dark:hover:border-white/10 transition-all">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <x-lucide-tv class="w-4 h-4 text-violet-400 shrink-0" />
+                            <div class="truncate">
+                                <span class="font-semibold text-[#1C1814] dark:text-neutral-200 group-hover:text-violet-400 transition-colors block truncate">Series TV</span>
+                                <span class="text-[10.5px] text-[#7E756B] dark:text-[#6E7681] block">Full Seasons &amp; Episodes</span>
+                            </div>
+                        </div>
+                        <span class="text-neutral-400 group-hover:translate-x-0.5 transition-transform text-xs">→</span>
+                    </a>
                 </div>
             </div>
 

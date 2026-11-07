@@ -44,6 +44,16 @@
             'btn_bg' => 'bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white border-rose-500/20 dark:bg-rose-500/15 dark:hover:bg-rose-500 dark:text-rose-400 dark:hover:text-black dark:border-rose-500/30 dark:group-hover:shadow-[0_0_12px_rgba(244,63,94,0.5)]',
             'badge' => 'text-rose-700 bg-rose-50 border-rose-200/80 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20',
         ],
+        'series-tv' => [
+            'card_border' => 'border-slate-200/90 hover:border-violet-400 dark:border-violet-500/20 dark:hover:border-violet-400/60',
+            'corner' => 'border-violet-500 dark:border-violet-400',
+            'glow' => 'hover:shadow-[0_12px_32px_rgba(139,92,246,0.18)] dark:hover:shadow-[0_12px_36px_rgba(139,92,246,0.22)]',
+            'icon_border' => 'border-slate-200/90 group-hover:border-violet-400 dark:border-violet-500/30 dark:group-hover:border-violet-400 dark:group-hover:shadow-[0_0_24px_rgba(139,92,246,0.4)]',
+            'icon_bg' => 'bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-400',
+            'title_hover' => 'group-hover:text-violet-600 dark:group-hover:text-violet-300',
+            'btn_bg' => 'bg-violet-500/10 hover:bg-violet-500 text-violet-600 hover:text-white border-violet-500/20 dark:bg-violet-500/15 dark:hover:bg-violet-500 dark:text-violet-400 dark:hover:text-black dark:border-violet-500/30 dark:group-hover:shadow-[0_0_12px_rgba(139,92,246,0.5)]',
+            'badge' => 'text-violet-700 bg-violet-50 border-violet-200/80 dark:text-violet-400 dark:bg-violet-500/10 dark:border-violet-500/20',
+        ],
         default => [ // mac-apps & others
             'card_border' => 'border-slate-200/90 hover:border-sky-400 dark:border-sky-500/20 dark:hover:border-sky-400/60',
             'corner' => 'border-sky-500 dark:border-sky-400',

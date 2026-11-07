@@ -74,6 +74,15 @@
                         </a>
                     </li>
 
+                    <!-- TV Series -->
+                    <li class="menu-item shrink-0">
+                        <a href="{{ route('category', 'series-tv') }}"
+                           class="hover:text-[#0071E3] dark:hover:text-white transition-all flex items-center gap-1.5 py-1.5 px-2 xl:px-2.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer whitespace-nowrap shrink-0 {{ request()->is('category/series-tv*') || request()->is('category/series*') ? 'text-[#0071E3] dark:text-white font-semibold' : 'text-[#38322B]/90 dark:text-[#F6F3EC]/90' }}">
+                            <x-lucide-tv class="w-4 h-4 text-violet-400 flex-shrink-0" />
+                            <span class="whitespace-nowrap">Series TV</span>
+                        </a>
+                    </li>
+
                     <!-- Top Downloads -->
                     <li class="menu-item shrink-0">
                         <a href="{{ route('popular') }}"
@@ -222,6 +231,20 @@
                         <div class="truncate">
                             <span class="block font-semibold text-xs leading-tight group-hover:text-[#0071E3] dark:group-hover:text-white transition-colors">Free Movies</span>
                             <span class="block text-[10px] text-[#8C847A] dark:text-[#A1A1AA]">Full HD Movies &amp; Streaming</span>
+                        </div>
+                    </div>
+                    <svg class="w-4 h-4 text-[#8C847A] group-hover:text-[#0071E3] dark:group-hover:text-white transition-colors flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+                </a>
+
+                <!-- TV Series -->
+                <a href="{{ route('category', 'series-tv') }}" class="flex items-center justify-between p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 dark:bg-violet-500/20 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                            <x-lucide-tv class="w-4 h-4" />
+                        </div>
+                        <div class="truncate">
+                            <span class="block font-semibold text-xs leading-tight group-hover:text-[#0071E3] dark:group-hover:text-white transition-colors">Series TV</span>
+                            <span class="block text-[10px] text-[#8C847A] dark:text-[#A1A1AA]">Full Seasons &amp; HD Episodes</span>
                         </div>
                     </div>
                     <svg class="w-4 h-4 text-[#8C847A] group-hover:text-[#0071E3] dark:group-hover:text-white transition-colors flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>

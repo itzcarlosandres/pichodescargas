@@ -10,6 +10,8 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/categories', [HomeController::class, 'categories'])->name('categories');
 Route::redirect('/category/movies', '/category/peliculas-gratis');
 Route::redirect('/movies', '/category/peliculas-gratis');
+Route::redirect('/series', '/category/series-tv');
+Route::redirect('/category/series', '/category/series-tv');
 Route::get('/category/{category:slug}', [HomeController::class, 'category'])->name('category');
 Route::get('/app/{application:slug}', [HomeController::class, 'app'])->name('app');
 Route::get('/app/{application:slug}/og-image.jpg', [HomeController::class, 'ogImage'])->name('app.og-image');
@@ -156,4 +158,12 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::post('/scraper/cybermania/search', [ScraperController::class, 'searchCybermania'])->name('scraper.cybermania.search');
     Route::post('/scraper/cybermania/import-single', [ScraperController::class, 'importCybermaniaSingle'])->name('scraper.cybermania.import-single');
     Route::post('/scraper/cybermania/sync-latest', [ScraperController::class, 'syncCybermaniaLatest'])->name('scraper.cybermania.sync-latest');
+
+    // MejorTorrent / DonTorrent Películas & Series Scraper
+    Route::get('/scraper/mejortorrent/latest', [ScraperController::class, 'getMejortorrentLatest'])->name('scraper.mejortorrent.latest');
+    Route::post('/scraper/mejortorrent/import-single', [ScraperController::class, 'importMejortorrentSingle'])->name('scraper.mejortorrent.import-single');
+    Route::post('/scraper/mejortorrent/sync-latest', [ScraperController::class, 'syncMejortorrentLatest'])->name('scraper.mejortorrent.sync-latest');
+    Route::get('/scraper/mejortorrent/series', [ScraperController::class, 'getMejortorrentSeriesLatest'])->name('scraper.mejortorrent.series');
+    Route::post('/scraper/mejortorrent/import-series-single', [ScraperController::class, 'importMejortorrentSeriesSingle'])->name('scraper.mejortorrent.import-series-single');
+    Route::post('/scraper/mejortorrent/sync-series-latest', [ScraperController::class, 'syncMejortorrentSeriesLatest'])->name('scraper.mejortorrent.sync-series-latest');
 });

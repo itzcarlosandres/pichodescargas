@@ -9,6 +9,7 @@
         $appTitle = $application->resolveSeoTitle($platformLabel);
         $appDesc = $application->resolveSeoDescription($platformLabel);
         $shareImage = route('app.og-image', $application->slug);
+        $isMedia = in_array($application->category?->slug, ['peliculas-gratis', 'series-tv', 'peliculas', 'series']);
     @endphp
 
     @section('title', $appTitle)
@@ -16,6 +17,103 @@
     @section('og_image', $shareImage)
     @section('og_type', 'article')
     @section('canonical', route('app', $application->slug))
+
+    @push('styles')
+    <style>
+        /* Impeccable Cinematic Badges & Movie Details Fallback */
+        .movie-badges {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .movie-badges .badge,
+        .entry-content .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.025em;
+            line-height: 1.2;
+            text-transform: none;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .movie-badges .badge.bg-primary,
+        .entry-content .badge.bg-primary {
+            background-color: rgba(244, 63, 94, 0.12) !important;
+            color: #fb7185 !important;
+            border: 1px solid rgba(244, 63, 94, 0.25) !important;
+        }
+        .movie-badges .badge.bg-success,
+        .entry-content .badge.bg-success {
+            background-color: rgba(16, 185, 129, 0.12) !important;
+            color: #34d399 !important;
+            border: 1px solid rgba(16, 185, 129, 0.25) !important;
+        }
+        .movie-badges .badge.bg-secondary,
+        .entry-content .badge.bg-secondary {
+            background-color: rgba(245, 158, 11, 0.12) !important;
+            color: #fbbf24 !important;
+            border: 1px solid rgba(245, 158, 11, 0.25) !important;
+        }
+        .entry-content .movie-details h3.text-primary,
+        .entry-content .movie-details h3 {
+            font-size: 0.8125rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #d4ccc0 !important;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .entry-content .movie-specs {
+            background: #14110E !important;
+            border: 1px solid #262019 !important;
+            border-radius: 1rem !important;
+            padding: 1.25rem !important;
+            margin-top: 1.5rem !important;
+            color: #c4bdb5 !important;
+        }
+        .entry-content .movie-specs h4 {
+            color: #ffffff !important;
+            font-size: 0.75rem !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+            margin-bottom: 0.75rem !important;
+        }
+        .entry-content .movie-specs ul {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.5rem;
+            padding: 0;
+            list-style: none;
+            margin: 0;
+        }
+        .entry-content .movie-specs li {
+            background: #181410;
+            border: 1px solid #221C16;
+            border-radius: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+        }
+        .entry-content .movie-specs li strong {
+            color: #8C847A !important;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
+            display: block;
+            margin-bottom: 0.125rem;
+        }
+    </style>
+    @endpush
 
     @section('schema')
     <script type="application/ld+json">
@@ -163,7 +261,20 @@
 
                             <!-- sah-side: Download CTA Button (Exact User Reference Match) -->
                             <div class="sah-side flex flex-col items-center sm:items-end w-full sm:w-auto mt-2 sm:mt-0">
-                                @if($application->has_torrent && empty($application->download_url_external) && empty($application->download_url))
+                                @if(!empty($application->download_mirrors) && count($application->download_mirrors) > 1)
+                                    <!-- TV Series: Multiple Episodes Selector -->
+                                    <a class="btn-download-banner !bg-gradient-to-r !from-purple-600 !to-indigo-600 !text-white !shadow-purple-500/25 cursor-pointer w-full sm:w-[260px]"
+                                       href="#episodios"
+                                       title="Ver Capítulos de {{ $application->name }}">
+                                        <span class="btn-download-label !text-white flex items-center gap-1.5">
+                                            <span>📺 Ver {{ count($application->download_mirrors) }} Capítulos</span>
+                                        </span>
+                                        <span class="btn-download-sub !text-white/80">
+                                            Torrents Disponibles &middot; Español
+                                        </span>
+                                        <span class="sr-only">Ver Capítulos de {{ $application->name }}</span>
+                                    </a>
+                                @elseif($application->has_torrent && empty($application->download_url_external) && empty($application->download_url))
                                     <!-- Only Torrent Available -->
                                     <a class="btn-download-banner !bg-gradient-to-r !from-[#30D158] !to-[#10B981] !text-black !shadow-[#30D158]/25 cursor-pointer w-full sm:w-[260px]"
                                        href="{{ route('download', ['application' => $application->slug, 'type' => 'torrent']) }}"
@@ -216,6 +327,7 @@
                                 </div>
                             </div>
 
+                            @if(! $isMedia)
                             <!-- Redesigned Specs Bar: Apple macOS Hardware Specs Card Grid -->
                             <div class="sah-specs !p-3 sm:!p-4 !bg-[#F6F5F2]/80 dark:!bg-[#151619]/90 !border-[#E5DFD7] dark:!border-[#27282F] !rounded-2xl !gap-2.5 sm:!gap-3 backdrop-blur-xl shadow-sm my-5" style="--sah-cols: 4">
                                 <!-- Spec 1: Size -->
@@ -307,6 +419,7 @@
                                           x-text="currentRating > 0 ? 'Your rating saved' : 'Click stars to rate'"></span>
                                 </div>
                             </div>
+                            @endif
                         </header>
 
                         <!-- Entry Content -->
@@ -342,6 +455,66 @@
                             @endif
                         </div>
 
+                        <!-- TV Series Episodes Guide & Download Table -->
+                        @if(!empty($application->download_mirrors) && count($application->download_mirrors) > 0)
+                            <div id="episodios" class="my-8 rounded-2xl bg-[#14110E] border border-[#262019] p-5 sm:p-6 shadow-xl space-y-4">
+                                <!-- Header -->
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#221C16] pb-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                                <span>Guía de Capítulos Disponibles</span>
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                                                    {{ count($application->download_mirrors) }} Episodios
+                                                </span>
+                                            </h3>
+                                            <p class="text-xs text-[#8C847A] mt-0.5">Descarga cada capítulo individualmente por torrent con alta velocidad y audio en español.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Episodes List -->
+                                <div class="divide-y divide-[#1F1A15]">
+                                    @foreach($application->download_mirrors as $mirror)
+                                        <div class="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#181410] px-3 rounded-xl transition-colors group">
+                                            <div class="flex items-center gap-3">
+                                                <span class="px-2.5 py-1 rounded-lg bg-[#1F1A15] border border-[#2E251E] text-purple-400 font-mono font-extrabold text-xs shrink-0 shadow-sm">
+                                                    {{ $mirror['episode'] ?? 'EP' }}
+                                                </span>
+                                                <div>
+                                                    <h4 class="text-xs sm:text-sm font-bold text-white group-hover:text-purple-400 transition-colors">
+                                                        {{ $mirror['name'] ?? ('Capítulo ' . ($mirror['episode'] ?? '')) }}
+                                                    </h4>
+                                                    <div class="flex items-center gap-2 text-[11px] font-mono text-[#8C847A] mt-0.5">
+                                                        @if(!empty($mirror['date']))
+                                                            <span>📅 {{ $mirror['date'] }}</span>
+                                                            <span>&middot;</span>
+                                                        @endif
+                                                        <span class="text-rose-400 font-semibold">{{ $mirror['quality'] ?? ($application->version ?? 'HD') }}</span>
+                                                        <span>&middot;</span>
+                                                        <span class="text-emerald-400 font-semibold">Español</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Download Torrent Action Button -->
+                                            <div class="flex items-center gap-2 shrink-0">
+                                                <a href="{{ route('download', ['application' => $application->slug, 'episode' => $mirror['episode'] ?? '', 'type' => 'torrent']) }}"
+                                                   class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-md shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
+                                                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                    <span>Descargar Torrent</span>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        @if(! $isMedia)
                         <!-- Interactive Tab Component (Features, Screenshots, Whats new?) -->
                         <div x-data="{ tab: 'features', zoomModal: null }" class="wps-shortcode-wrapper wps-tabs-wrapper">
                             <ul class="wps-tabs-list" role="tablist">
@@ -474,7 +647,9 @@
                                     </div>
                                 </div>
                             </div>
+                        @endif
 
+                        @if(! $isMedia && $application->versions && $application->versions->count() > 1)
                         <!-- Older Versions & Compatibility Section (Estilo Leer más) -->
                         <section class="cp-versions" id="older-versions" x-data="{ expanded: false }">
                             <div class="cp-versions-head flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
@@ -604,6 +779,7 @@
                                 </div>
                             @endif
                         </section>
+                        @endif
 
                         <!-- Verified Mirror & Official Website Link -->
                         @if($application->download_url_external)

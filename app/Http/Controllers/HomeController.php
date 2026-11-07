@@ -71,8 +71,8 @@ class HomeController extends Controller
             ->withCount('publishedApplications')
             ->get();
 
-        // 5 Categorías principales en orden estricto para el nuevo Home Cyber HUD
-        $categoryOrder = ['programas', 'mac-apps', 'apps-android', 'juegos-pc', 'peliculas-gratis'];
+        // 6 Categorías principales en orden estricto para el nuevo Home Cyber HUD
+        $categoryOrder = ['programas', 'mac-apps', 'apps-android', 'juegos-pc', 'peliculas-gratis', 'series-tv'];
         $sections = Category::whereIn('slug', $categoryOrder)
             ->active()
             ->with(['applications' => function ($q) {
@@ -320,6 +320,7 @@ class HomeController extends Controller
             'app_id' => $application->id,
             'version_id' => $targetVersion?->id,
             'type' => $type,
+            'episode' => request()->query('episode'),
             'exp' => now()->addMinutes(60)->timestamp,
         ];
         $encrypted = Crypt::encryptString(json_encode($payload));
@@ -360,7 +361,7 @@ class HomeController extends Controller
             abort(404);
         }
 
-        return $this->processDownload($application, $data['type'] ?? null, $data['version_id'] ?? null);
+        return $this->processDownload($application, $data['type'] ?? null, $data['version_id'] ?? null, $data['episode'] ?? null);
     }
 
     public function downloadFile(Application $application)
@@ -369,14 +370,35 @@ class HomeController extends Controller
             abort(404);
         }
 
-        return $this->processDownload($application, request()->query('type'), request()->query('version'));
+        return $this->processDownload($application, request()->query('type'), request()->query('version'), request()->query('episode'));
     }
 
-    protected function processDownload(Application $application, ?string $type = null, mixed $versionId = null)
+    protected function processDownload(Application $application, ?string $type = null, mixed $versionId = null, ?string $episodeCode = null)
     {
         $targetVersion = null;
         if ($versionId) {
             $targetVersion = $application->versions()->where('id', $versionId)->first();
+        }
+
+        $episodeCode = $episodeCode ?: request()->query('episode');
+
+        // TV Series Episode Torrent Download from download_mirrors
+        if ($episodeCode && ! empty($application->download_mirrors)) {
+            foreach ($application->download_mirrors as $mirror) {
+                if (($mirror['episode'] ?? '') === $episodeCode || ($mirror['name'] ?? '') === $episodeCode) {
+                    $application->incrementDownloads();
+                    Cache::forget('home_stats');
+
+                    if (! empty($mirror['file_path']) && Storage::disk('public')->exists($mirror['file_path'])) {
+                        return Storage::disk('public')->download($mirror['file_path'], basename($mirror['file_path']), [
+                            'Content-Type' => 'application/x-bittorrent',
+                        ]);
+                    }
+                    if (! empty($mirror['url'])) {
+                        return redirect()->away($mirror['url']);
+                    }
+                }
+            }
         }
 
         $isTorrentRequest = ($type === 'torrent') || (

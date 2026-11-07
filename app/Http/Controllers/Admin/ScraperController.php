@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Setting;
 use App\Services\Scraper\CybermaniaImporter;
 use App\Services\Scraper\HaxmacImporter;
+use App\Services\Scraper\MejortorrentImporter;
 use App\Services\Scraper\TorrentmacImporter;
 use App\Services\Storage\CloudflareR2Service;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +22,8 @@ class ScraperController extends Controller
     public function __construct(
         protected HaxmacImporter $importer,
         protected TorrentmacImporter $torrentmacImporter,
-        protected CybermaniaImporter $cybermaniaImporter
+        protected CybermaniaImporter $cybermaniaImporter,
+        protected MejortorrentImporter $mejortorrentImporter
     ) {}
 
     /**
@@ -37,6 +39,9 @@ class ScraperController extends Controller
             'last_sync' => Setting::get('scraper_last_sync', 'Nunca'),
             'last_torrent_sync' => Setting::get('torrentmac_last_sync', 'Nunca'),
             'last_cybermania_sync' => Setting::get('cybermania_last_sync', 'Nunca'),
+            'last_mejortorrent_sync' => Setting::get('mejortorrent_last_sync', 'Nunca'),
+            'total_movies' => Application::where('category_id', 6)->count(),
+            'mejortorrent_cron_enabled' => (bool) Setting::get('mejortorrent_cron_enabled', true),
             'cron_enabled' => (bool) Setting::get('scraper_cron_enabled', false),
             'cron_time' => Setting::get('scraper_cron_time', '03:00'),
             'cron_pages' => (int) Setting::get('scraper_cron_pages', 2),
@@ -102,6 +107,12 @@ class ScraperController extends Controller
             ['slug' => 'plugins', 'name' => 'Plugins', 'icon' => '🔌'],
         ];
 
+        $mejortorrentCategories = [
+            ['slug' => 'all', 'name' => 'Todas las Películas', 'icon' => '🎬'],
+            ['slug' => 'hd', 'name' => 'Películas HD (1080p)', 'icon' => '🍿'],
+            ['slug' => '4k', 'name' => 'Películas 4K UHD', 'icon' => '🌟'],
+        ];
+
         return view('admin.scraper.index', compact(
             'stats',
             'categories',
@@ -109,7 +120,8 @@ class ScraperController extends Controller
             'haxmacLatest',
             'haxmacPagination',
             'haxmacCategories',
-            'torrentmacCategories'
+            'torrentmacCategories',
+            'mejortorrentCategories'
         ));
     }
 
@@ -345,6 +357,18 @@ class ScraperController extends Controller
         Setting::set('scraper_cron_limit', $cronLimit, 'scraper');
         Setting::set('scraper_cron_frequency', $cronFrequency, 'scraper');
         Setting::set('scraper_drip_feed_mode', $request->boolean('drip_mode') ? '1' : '0', 'scraper');
+        if ($request->has('mejortorrent_cron_enabled')) {
+            Setting::set('mejortorrent_cron_enabled', $request->boolean('mejortorrent_cron_enabled') ? '1' : '0', 'scraper');
+        }
+        if ($request->filled('mejortorrent_base_url')) {
+            Setting::set('mejortorrent_base_url', trim($request->input('mejortorrent_base_url')), 'scraper');
+        }
+        if ($request->has('mejortorrent_cf_clearance')) {
+            Setting::set('mejortorrent_cf_clearance', trim($request->input('mejortorrent_cf_clearance', '')), 'scraper');
+        }
+        if ($request->has('flaresolverr_url')) {
+            Setting::set('flaresolverr_url', trim($request->input('flaresolverr_url', '')), 'scraper');
+        }
         Setting::clearCache();
 
         $redirectUrl = $request->filled('tab')
@@ -805,6 +829,218 @@ class ScraperController extends Controller
                 'message' => 'Error al escanear actualizaciones de CyberMania: '.$e->getMessage(),
                 'count' => 0,
                 'items' => [],
+            ], 500);
+        }
+    }
+
+    /**
+     * Get paginated latest movies from MejorTorrent / DonTorrent
+     */
+    public function getMejortorrentLatest(Request $request): JsonResponse
+    {
+        $page = max(1, (int) $request->input('page', 1));
+        $quality = (string) $request->input('quality', 'all');
+
+        try {
+            $data = $this->mejortorrentImporter->getMoviesCatalog($page, true, $quality);
+
+            return response()->json([
+                'success' => true,
+                'items' => $data['items'],
+                'pagination' => $data['pagination'],
+                'quality' => $quality,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("ScraperController getMejortorrentLatest error: {$e->getMessage()}");
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo cargar el catálogo de películas: '.$e->getMessage(),
+                'items' => [],
+                'pagination' => [
+                    'current_page' => $page,
+                    'total_pages' => 1,
+                    'has_next' => false,
+                    'has_prev' => false,
+                ],
+            ], 500);
+        }
+    }
+
+    /**
+     * Import a single movie by URL from MejorTorrent / DonTorrent
+     */
+    public function importMejortorrentSingle(Request $request): JsonResponse
+    {
+        $url = trim($request->input('url', ''));
+        if (empty($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Por favor, proporciona una URL válida de la película.',
+            ], 422);
+        }
+
+        try {
+            $movie = $this->mejortorrentImporter->importMovieByUrl($url, true, true);
+            if ($movie) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Película importada correctamente: {$movie->name}",
+                    'item' => [
+                        'id' => $movie->id,
+                        'name' => $movie->name,
+                        'slug' => $movie->slug,
+                        'version' => $movie->version,
+                        'public_url' => route('app', $movie->slug),
+                    ],
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo importar la película. Revisa la URL e inténtalo de nuevo.',
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error("ScraperController importMejortorrentSingle error: {$e->getMessage()}");
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error importando película: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Sincronizar novedades de películas torrent
+     */
+    public function syncMejortorrentLatest(Request $request): JsonResponse
+    {
+        $limit = max(1, min(50, (int) $request->input('limit', 6)));
+        $quality = (string) $request->input('quality', 'all');
+        $pages = max(1, min(5, (int) $request->input('pages', 2)));
+
+        try {
+            $result = $this->mejortorrentImporter->syncLatestMovies(true, $limit, $pages, $quality);
+
+            return response()->json([
+                'success' => true,
+                'imported' => $result['imported'],
+                'updated' => $result['updated'],
+                'message' => "Sincronización de Películas finalizada: {$result['imported']} nuevas películas importadas.",
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("ScraperController syncMejortorrentLatest error: {$e->getMessage()}");
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al sincronizar películas: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get paginated latest TV series from MejorTorrent / DonTorrent
+     */
+    public function getMejortorrentSeriesLatest(Request $request): JsonResponse
+    {
+        $page = max(1, (int) $request->input('page', 1));
+        $quality = (string) $request->input('quality', 'all');
+
+        try {
+            $data = $this->mejortorrentImporter->getSeriesCatalog($page, true, $quality);
+
+            return response()->json([
+                'success' => true,
+                'items' => $data['items'],
+                'pagination' => $data['pagination'],
+                'quality' => $quality,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("ScraperController getMejortorrentSeriesLatest error: {$e->getMessage()}");
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo cargar el catálogo de series: '.$e->getMessage(),
+                'items' => [],
+                'pagination' => [
+                    'current_page' => $page,
+                    'total_pages' => 1,
+                    'has_next' => false,
+                    'has_prev' => false,
+                ],
+            ], 500);
+        }
+    }
+
+    /**
+     * Import a single TV series by URL from MejorTorrent / DonTorrent
+     */
+    public function importMejortorrentSeriesSingle(Request $request): JsonResponse
+    {
+        $url = trim($request->input('url', ''));
+        if (empty($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Por favor, proporciona una URL válida de la serie.',
+            ], 422);
+        }
+
+        try {
+            $series = $this->mejortorrentImporter->importSeriesByUrl($url, true, true);
+            if ($series) {
+                $count = is_array($series->download_mirrors) ? count($series->download_mirrors) : 0;
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "Serie importada correctamente con {$count} capítulos: {$series->name}",
+                    'item' => [
+                        'id' => $series->id,
+                        'name' => $series->name,
+                        'slug' => $series->slug,
+                        'version' => $series->version,
+                        'episodes_count' => $count,
+                        'public_url' => route('app', $series->slug),
+                    ],
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo importar la serie. Revisa la URL e inténtalo de nuevo.',
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error("ScraperController importMejortorrentSeriesSingle error: {$e->getMessage()}");
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error importando serie: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Sincronizar novedades de series TV torrent
+     */
+    public function syncMejortorrentSeriesLatest(Request $request): JsonResponse
+    {
+        $limit = max(1, min(30, (int) $request->input('limit', 6)));
+        $quality = (string) $request->input('quality', 'all');
+
+        try {
+            $result = $this->mejortorrentImporter->syncLatestSeries($limit, $quality);
+
+            return response()->json([
+                'success' => true,
+                'imported' => $result['imported'],
+                'updated' => $result['updated'],
+                'message' => "Sincronización de Series finalizada: {$result['imported']} nuevas temporadas importadas.",
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("ScraperController syncMejortorrentSeriesLatest error: {$e->getMessage()}");
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al sincronizar series: '.$e->getMessage(),
             ], 500);
         }
     }

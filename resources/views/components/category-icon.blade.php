@@ -50,6 +50,14 @@
             <x-lucide-film class="{{ $class }}" />
             @break
 
+        @case('series-tv')
+        @case('series')
+        @case('serie')
+        @case('tv-series')
+        @case('tv')
+            <x-lucide-tv class="{{ $class }}" />
+            @break
+
         @case('app')
         @case('applications')
         @case('apps')

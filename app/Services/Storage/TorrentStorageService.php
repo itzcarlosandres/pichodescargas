@@ -19,7 +19,7 @@ class TorrentStorageService
      * Generate a clean, branded filename eliminating third-party domains (e.g. torrentmac.net)
      * and replacing them with PichoDescargas
      */
-    public function generateBrandedFilename(string $appName, ?string $version = null, ?string $originalUrl = null): string
+    public function generateBrandedFilename(string $appName, ?string $version = null, ?string $originalUrl = null, bool $isMac = true): string
     {
         $brand = 'PichoDescargas';
 
@@ -36,9 +36,9 @@ class TorrentStorageService
                 $clean = preg_replace('/\.zip$/i', '', $clean);
 
                 // Strip third party branding keywords and enclosing brackets
-                $clean = preg_replace('/\[[^\]]*(torrentmac|macbb|cmacapps)[^\]]*\]/i', '', $clean);
-                $clean = preg_replace('/\([^\)]*(torrentmac|macbb|cmacapps)[^\)]*\)/i', '', $clean);
-                $clean = preg_replace('/[_\.\-\s]*(torrentmac(\.net)?|macbb(\.org)?|cmacapps(\.com)?)[_\.\-\s]*/i', '_', $clean);
+                $clean = preg_replace('/\[[^\]]*(torrentmac|macbb|cmacapps|dontorrent|mejortorrent)[^\]]*\]/i', '', $clean);
+                $clean = preg_replace('/\([^\)]*(torrentmac|macbb|cmacapps|dontorrent|mejortorrent)[^\)]*\)/i', '', $clean);
+                $clean = preg_replace('/[_\.\-\s]*(torrentmac(\.net)?|macbb(\.org)?|cmacapps(\.com)?|dontorrent(\.[a-z]+)?|mejortorrent(\.[a-z]+)?)[_\.\-\s]*/i', '_', $clean);
 
                 // Strip empty brackets/parentheses
                 $clean = preg_replace('/[\[\]\(\)\{\}]+/', '', $clean);
@@ -53,8 +53,8 @@ class TorrentStorageService
                 $clean = trim(preg_replace('/[_\s]+/', '_', $clean), '_');
 
                 if (! empty($clean) && strlen($clean) > 3) {
-                    // Ensure macOS is mentioned if not present
-                    if (! preg_match('/macos/i', $clean)) {
+                    // Ensure macOS is mentioned if not present (only for Mac software)
+                    if ($isMac && ! preg_match('/macos/i', $clean)) {
                         $clean .= '_macOS';
                     }
 
@@ -74,7 +74,7 @@ class TorrentStorageService
             $parts[] = $cleanVersion;
         }
 
-        if (! preg_match('/macos/i', $cleanName)) {
+        if ($isMac && ! preg_match('/macos/i', $cleanName)) {
             $parts[] = 'macOS';
         }
 

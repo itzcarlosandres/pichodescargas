@@ -77,6 +77,14 @@
                 <span x-text="cybermaniaSyncing ? 'Sincronizando...' : '⚡ Sincronizar CyberMania'"></span>
             </button>
 
+            <button type="button" @click="tab = 'mejortorrent'; syncMejortorrentNow()" :disabled="mejortorrentSyncing"
+                    class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#E11D48] to-[#FB7185] hover:from-[#BE123C] hover:to-[#E11D48] text-white text-xs font-black shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50">
+                <svg :class="mejortorrentSyncing ? 'animate-spin' : ''" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span x-text="mejortorrentSyncing ? 'Sincronizando...' : '🎬 Sincronizar Películas'"></span>
+            </button>
+
             <button type="button" @click="syncUpdatesNow()" :disabled="syncingUpdates"
                     class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-[#EA580C] hover:from-primary-hover hover:to-[#F97316] text-white text-xs font-bold shadow-lg shadow-primary/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50">
                 <svg :class="syncingUpdates ? 'animate-spin' : ''" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,6 +244,14 @@
             <span x-show="cybermaniaUpdatesCount > 0" x-cloak
                   class="px-1.5 py-0.2 rounded-full font-mono text-[10px] font-extrabold bg-warning text-black"
                   x-text="cybermaniaUpdatesCount"></span>
+        </button>
+
+        <!-- 4. Películas & Series Torrent (MejorTorrent / DonTorrent) -->
+        <button type="button" @click="tab = 'mejortorrent'; if (mejortorrentApps.length === 0) loadMejortorrent(1)"
+                :class="tab === 'mejortorrent' ? 'bg-[#3b1219] text-[#FB7185] border border-[#FB7185]/60 shadow-lg shadow-rose-500/20 font-black ring-1 ring-[#FB7185]/40' : 'text-[#8C847A] hover:text-[#FB7185] hover:bg-[#1E1914] border border-transparent'"
+                class="flex-1 min-w-[220px] py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer relative whitespace-nowrap shrink-0">
+            <span class="text-base leading-none">🎬</span>
+            <span class="font-bold">Películas &amp; Series Torrent</span>
         </button>
 
         <!-- 4. Automatización Cron -->
@@ -1329,6 +1345,335 @@
         </div>
     </div>
 
+    <!-- TAB: MEJORTORRENT (PELÍCULAS TORRENT) -->
+    <div x-show="tab === 'mejortorrent'" class="space-y-6" x-cloak>
+        <!-- Importador Directo de Películas y Series por URL -->
+        <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-4">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#FB7185]"></span>
+                Importador Directo de Película o Serie por URL (1 Clic)
+            </h2>
+            <p class="text-xs text-[#8C847A]">Pega la URL de cualquier película o serie de <strong>DonTorrent / MejorTorrent</strong> para resolver el PoW, descargar los archivos <code class="text-rose-400">.torrent</code> con la marca <strong class="text-white">[PichoDescargas]</strong> (incluyendo todos los capítulos de la temporada), extraer carátula HD y sinopsis, y publicarla automáticamente en tu portal.</p>
+
+            <form @submit.prevent="importMejortorrentSingleNow()" class="flex flex-col sm:flex-row items-center gap-3">
+                <div class="relative flex-1 w-full">
+                    <input type="text" x-model="mejortorrentUrl"
+                           placeholder="Ej: https://dontorrent.tips/pelicula/... o https://dontorrent.tips/serie/130983/..."
+                           class="w-full bg-[#1A1612] border border-[#2E261E] focus:border-[#FB7185] rounded-xl px-4 py-2.5 text-xs text-white placeholder-[#736B63] focus:outline-none transition-colors">
+                </div>
+                <button type="submit" :disabled="mejortorrentImporting || !mejortorrentUrl"
+                        class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#E11D48] to-[#FB7185] hover:from-[#BE123C] hover:to-[#E11D48] text-white text-xs font-black shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap">
+                    <svg :class="mejortorrentImporting ? 'animate-spin' : ''" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    <span x-text="mejortorrentImporting ? 'Descargando y Procesando...' : '🎬 Importar Película / Serie Ahora'"></span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Explorador / Catálogo en Vivo de Películas & Series Torrent (Grid Visual con Posters) -->
+        <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-5">
+            <!-- Header & Filter Bar -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#262019]">
+                <div>
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full" :class="mejortorrentContentType === 'series' ? 'bg-[#A855F7]' : 'bg-[#FB7185]'"></span>
+                        <span x-text="mejortorrentContentType === 'series' ? 'Catálogo de Series TV Torrent en Vivo' : 'Catálogo de Películas Torrent en Vivo'"></span>
+                    </h3>
+                    <p class="text-xs text-[#8C847A] mt-0.5" x-text="mejortorrentContentType === 'series' ? 'Explora las últimas series con sus temporadas y descarga todos sus capítulos a 1-clic.' : 'Explora los últimos estrenos agregados con sus carátulas originales e impórtalas a tu portal con 1 solo clic.'"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" @click="loadMejortorrent(mejortorrentCurrentPage)" :disabled="mejortorrentLoading"
+                            class="px-3 py-2 rounded-xl bg-[#1A1612] hover:bg-[#251F19] text-[#D8CFBE] text-xs font-semibold border border-[#2E261E] flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50">
+                        <svg :class="mejortorrentLoading ? 'animate-spin' : ''" class="w-3.5 h-3.5" :class="mejortorrentContentType === 'series' ? 'text-purple-400' : 'text-[#FB7185]'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span>Actualizar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Type Switcher & Quality Pills -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <!-- Content Type Selector (Películas vs Series) -->
+                <div class="flex items-center gap-1.5 p-1 bg-[#1A1612] border border-[#2B231B] rounded-2xl w-fit">
+                    <button type="button" @click="setContentType('movies')"
+                            :class="mejortorrentContentType === 'movies' ? 'bg-[#FB7185] text-black font-black shadow-lg shadow-rose-500/20' : 'text-[#8C847A] hover:text-white'"
+                            class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>🎬 Películas</span>
+                    </button>
+                    <button type="button" @click="setContentType('series')"
+                            :class="mejortorrentContentType === 'series' ? 'bg-[#A855F7] text-white font-black shadow-lg shadow-purple-500/20' : 'text-[#8C847A] hover:text-white'"
+                            class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>📺 Series TV</span>
+                    </button>
+                </div>
+
+                <!-- Quality Pills for Movies -->
+                <div x-show="mejortorrentContentType === 'movies'" class="flex items-center gap-2 flex-wrap">
+                    <button type="button" @click="loadMejortorrent(1, 'all')"
+                            :class="mejortorrentQuality === 'all' ? 'bg-[#FB7185] text-black font-black shadow-lg shadow-rose-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>🌐 Todas</span>
+                    </button>
+                    <button type="button" @click="loadMejortorrent(1, 'hd')"
+                            :class="mejortorrentQuality === 'hd' ? 'bg-[#FB7185] text-black font-black shadow-lg shadow-rose-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>🎬 Películas HD</span>
+                    </button>
+                    <button type="button" @click="loadMejortorrent(1, '4k')"
+                            :class="mejortorrentQuality === '4k' ? 'bg-[#FB7185] text-black font-black shadow-lg shadow-rose-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>✨ Películas 4K</span>
+                    </button>
+                </div>
+
+                <!-- Quality Pills for Series -->
+                <div x-show="mejortorrentContentType === 'series'" class="flex items-center gap-2 flex-wrap">
+                    <button type="button" @click="loadMejortorrent(1, 'all')"
+                            :class="mejortorrentQuality === 'all' ? 'bg-[#A855F7] text-white font-black shadow-lg shadow-purple-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>🌐 Todas las Series</span>
+                    </button>
+                    <button type="button" @click="loadMejortorrent(1, 'hd')"
+                            :class="mejortorrentQuality === 'hd' ? 'bg-[#A855F7] text-white font-black shadow-lg shadow-purple-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>📺 Series HD</span>
+                    </button>
+                    <button type="button" @click="loadMejortorrent(1, '4k')"
+                            :class="mejortorrentQuality === '4k' ? 'bg-[#A855F7] text-white font-black shadow-lg shadow-purple-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
+                        <span>✨ Series 4K</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Header Info of Active Filter -->
+            <div class="flex items-center justify-between text-xs pt-1">
+                <div class="flex items-center gap-2">
+                    <span class="text-[#8C847A]">Categoría:</span>
+                    <strong class="text-white capitalize" x-text="mejortorrentQualityName"></strong>
+                </div>
+                <span class="text-xs text-[#8C847A] font-mono" x-show="mejortorrentApps.length > 0">
+                    Mostrando <strong class="text-white" x-text="mejortorrentApps.length"></strong> películas
+                </span>
+            </div>
+
+            <!-- Loading Skeleton -->
+            <div x-show="mejortorrentLoading && mejortorrentApps.length === 0"
+                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 py-8">
+                <template x-for="i in 12" :key="i">
+                    <div class="bg-[#1A1612] border border-[#262019] rounded-2xl p-4 animate-pulse space-y-3">
+                        <div class="w-full aspect-[2/3] bg-[#262019] rounded-xl mx-auto"></div>
+                        <div class="h-4 bg-[#262019] rounded w-3/4 mx-auto"></div>
+                        <div class="h-3 bg-[#262019] rounded w-1/2 mx-auto"></div>
+                        <div class="h-8 bg-[#262019] rounded-xl w-full"></div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Empty State -->
+            <div x-show="!mejortorrentLoading && mejortorrentApps.length === 0"
+                 class="text-center py-12 space-y-3">
+                <span class="text-4xl">🎬</span>
+                <p class="text-sm text-[#8C847A]">No se han cargado películas del catálogo de MejorTorrent / DonTorrent aún.</p>
+                <button type="button" @click="loadMejortorrent(1)" class="px-4 py-2 rounded-xl bg-[#E11D48] text-white text-xs font-bold hover:bg-[#BE123C] transition-colors cursor-pointer">
+                    Cargar Catálogo Inicial
+                </button>
+            </div>
+
+            <!-- MejorTorrent Movie Cards Grid -->
+            <div x-show="mejortorrentApps.length > 0"
+                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+                 :class="mejortorrentLoading ? 'opacity-50 pointer-events-none' : ''">
+                <template x-for="movie in mejortorrentApps" :key="movie.url">
+                    <div class="bg-[#181410] border rounded-2xl p-3 flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-xl group relative"
+                         :class="movie.is_imported ? 'border-success/40 hover:border-success/60' : 'border-[#2B231B] hover:border-[#FB7185]/50'">
+                        <!-- Top Badges & Poster -->
+                        <div>
+                            <div class="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-[#1A1612] border border-[#262019] flex items-center justify-center">
+                                <template x-if="movie.image_url">
+                                    <img :src="movie.image_url" :alt="movie.title" 
+                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                         loading="lazy"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                                </template>
+                                <div class="w-full h-full flex items-center justify-center text-3xl font-bold"
+                                     :class="mejortorrentContentType === 'series' ? 'bg-gradient-to-tr from-purple-600/20 to-indigo-600/20 text-purple-400' : 'bg-gradient-to-tr from-[#E11D48]/20 to-[#FB7185]/20 text-[#FB7185]'"
+                                     :style="movie.image_url ? 'display:none' : ''">
+                                    <span x-text="mejortorrentContentType === 'series' ? '📺' : '🎬'"></span>
+                                </div>
+
+                                <!-- Status Badge Top Right: EN PORTAL -->
+                                <div class="absolute top-2 right-2 flex flex-col items-end gap-1">
+                                    <template x-if="movie.is_imported">
+                                        <span class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase text-white shadow-md font-mono backdrop-blur-sm"
+                                              :class="mejortorrentContentType === 'series' ? 'bg-purple-600/90' : 'bg-success/90 !text-black'"
+                                              x-text="mejortorrentContentType === 'series' && movie.episodes_count > 0 ? ('✓ ' + movie.episodes_count + ' CAPS') : '✓ EN PORTAL'">
+                                        </span>
+                                    </template>
+                                </div>
+
+                                <!-- Quality Pill Top Left -->
+                                <div class="absolute top-2 left-2">
+                                    <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase bg-black/80 border backdrop-blur-sm font-mono"
+                                          :class="mejortorrentContentType === 'series' ? 'text-purple-300 border-purple-500/30' : 'text-rose-300 border-rose-500/30'"
+                                          x-text="movie.quality || (mejortorrentContentType === 'series' ? 'HDTV' : 'HD')"></span>
+                                </div>
+                            </div>
+
+                            <!-- Title -->
+                            <h4 class="text-[13px] font-bold text-white leading-snug line-clamp-2 mt-2.5 transition-colors min-h-[2.35rem]"
+                                :class="mejortorrentContentType === 'series' ? 'group-hover:text-purple-400' : 'group-hover:text-[#FB7185]'"
+                                :title="movie.title" x-text="movie.title"></h4>
+
+                            <!-- Quality & Category Meta -->
+                            <div class="mt-1 flex items-center justify-between text-[10px] font-mono text-[#8C847A]">
+                                <span class="font-bold" :class="mejortorrentContentType === 'series' ? 'text-purple-400' : 'text-[#FB7185]'" x-text="movie.quality || (mejortorrentContentType === 'series' ? 'HDTV' : '1080p')"></span>
+                                <span class="truncate max-w-[80px]" x-text="mejortorrentContentType === 'series' ? 'Series TV' : 'Películas'"></span>
+                            </div>
+                        </div>
+
+                        <!-- 1-Click Import Action Button -->
+                        <div class="mt-3 pt-2.5 border-t border-[#262019]">
+                            <button type="button" @click="importMejortorrentCard(movie)" :disabled="mejortorrentImportingUrl === movie.url"
+                                    class="w-full py-2 px-2 rounded-xl text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-90"
+                                    :class="mejortorrentImportingUrl === movie.url 
+                                        ? (mejortorrentContentType === 'series' ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white cursor-wait animate-pulse' : 'bg-gradient-to-r from-[#BE123C] to-[#E11D48] text-white cursor-wait animate-pulse')
+                                        : (movie.is_imported 
+                                            ? (mejortorrentContentType === 'series' ? 'bg-[#221A28] hover:bg-[#2C1F36] text-purple-400 border border-purple-500/30 shadow-none cursor-pointer' : 'bg-[#221C16] hover:bg-[#2B231C] text-[#FB7185] border border-[#FB7185]/30 shadow-none cursor-pointer')
+                                            : (mejortorrentContentType === 'series' 
+                                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-500/20 cursor-pointer' 
+                                                : 'bg-gradient-to-r from-[#E11D48] to-[#FB7185] hover:from-[#BE123C] hover:to-[#E11D48] text-white shadow-rose-500/20 cursor-pointer'))">
+
+                                <!-- Loading Spinner -->
+                                <svg x-show="mejortorrentImportingUrl === movie.url" class="animate-spin w-3.5 h-3.5 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+
+                                <span x-show="mejortorrentImportingUrl !== movie.url" class="text-sm" x-text="movie.is_imported ? '✓' : '+'"></span>
+
+                                <span x-text="mejortorrentImportingUrl === movie.url 
+                                    ? 'Importando...' 
+                                    : (movie.is_imported 
+                                        ? '✓ Re-importar' 
+                                        : (mejortorrentContentType === 'series' ? '+ Importar Serie' : '+ Importar a 1-Clic'))"></span>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Pagination Bar for MejorTorrent -->
+            <div x-show="mejortorrentTotalPages > 1"
+                 class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[#262019]">
+                <div class="text-xs text-[#8C847A] font-mono">
+                    Página <strong class="text-white" x-text="mejortorrentCurrentPage"></strong> de <strong class="text-white" x-text="mejortorrentTotalPages"></strong>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" @click="loadMejortorrent(mejortorrentCurrentPage - 1)" :disabled="!mejortorrentHasPrev || mejortorrentLoading"
+                            class="px-4 py-2 rounded-xl bg-[#1E1914] hover:bg-[#2A231C] text-white text-xs font-semibold border border-[#352B20] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        <span>Anterior</span>
+                    </button>
+
+                    <button type="button" @click="loadMejortorrent(mejortorrentCurrentPage + 1)" :disabled="!mejortorrentHasNext || mejortorrentLoading"
+                            class="px-4 py-2 rounded-xl bg-[#1E1914] hover:bg-[#2A231C] text-white text-xs font-semibold border border-[#352B20] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+                        <span>Siguiente</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sincronización Manual de Novedades y Configuración -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Card Sincronización -->
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-4">
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <span>⚡</span>
+                    Sincronización Rápida de Películas
+                </h3>
+                <p class="text-xs text-[#8C847A]">Rastrea los últimos estrenos agregados al catálogo y agrégalos a tu sitio con prioridad.</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-[#A8A199] mb-1">Calidad / Resolución</label>
+                        <select x-model="mejortorrentQuality" class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#FB7185] rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                            <option value="all">Todas las Calidades</option>
+                            <option value="hd">Películas HD (1080p BluRay)</option>
+                            <option value="4k">Películas 4K UHD</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-[#A8A199] mb-1">Límite a Importar</label>
+                        <select x-model.number="mejortorrentLimit" class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#FB7185] rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                            <option value="6">6 Películas</option>
+                            <option value="12">12 Películas</option>
+                            <option value="20">20 Películas</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="button" @click="syncMejortorrentNow()" :disabled="mejortorrentSyncing"
+                            class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#E11D48] to-[#FB7185] hover:from-[#BE123C] hover:to-[#E11D48] text-white text-xs font-black shadow-md shadow-rose-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50">
+                        <svg :class="mejortorrentSyncing ? 'animate-spin' : ''" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span x-text="mejortorrentSyncing ? 'Sincronizando Películas...' : '🎬 Iniciar Sincronización de Películas'"></span>
+                    </button>
+                </div>
+
+                <div class="pt-3 border-t border-[#1F1A15] flex items-center justify-between text-[11px] text-[#8C847A]">
+                    <span>Total películas en web: <strong class="text-white">{{ $stats['total_movies'] ?? 0 }}</strong></span>
+                    <span>Último sync: <strong class="text-white">{{ $stats['last_mejortorrent_sync'] ?? 'Nunca' }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Card Configuración y Evasión Cloudflare -->
+            <div class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-4">
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <span>🛡️</span>
+                    Servidor Fuente y Evasión Cloudflare
+                </h3>
+                <p class="text-xs text-[#8C847A]">Configura el dominio activo o el proxy si utilizas un espejo con protección Turnstile.</p>
+
+                <form action="{{ route('admin.scraper.cron-settings') }}" method="POST" class="space-y-3">
+                    @csrf
+                    <input type="hidden" name="tab" value="mejortorrent">
+                    <div>
+                        <label class="block text-[11px] font-bold text-[#A8A199] mb-1">Dominio / Espejo Activo</label>
+                        <input type="text" name="mejortorrent_base_url" value="{{ \App\Models\Setting::get('mejortorrent_base_url', 'https://dontorrent.tips') }}"
+                               placeholder="https://dontorrent.tips o https://www47.mejortorrent.eu"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#FB7185] rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                        <span class="text-[10px] text-emerald-400 font-mono mt-0.5 block">✓ Por defecto usa DonTorrent (sin bloqueos de Cloudflare, respuesta instantánea).</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-[#A8A199] mb-1">FlareSolverr URL (Opcional)</label>
+                        <input type="text" name="flaresolverr_url" value="{{ \App\Models\Setting::get('flaresolverr_url', '') }}"
+                               placeholder="Ej: http://127.0.0.1:8191/v1 (Sólo si usas mejortorrent.eu directamente)"
+                               class="w-full bg-[#12100E] border border-[#2B241C] focus:border-[#FB7185] rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-mono">
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-between">
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-white">
+                            <input type="checkbox" name="mejortorrent_cron_enabled" value="1" {{ ($stats['mejortorrent_cron_enabled'] ?? true) ? 'checked' : '' }}
+                                   class="rounded bg-[#12100E] border-[#2B241C] text-[#FB7185] focus:ring-0">
+                            <span>Activar en Cron Automático</span>
+                        </label>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-[#2A1D20] text-[#FB7185] hover:bg-[#3B2529] border border-[#FB7185]/30 text-xs font-bold transition-all cursor-pointer">
+                            Guardar Ajustes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- TAB 3: AUTOMATIZACIÓN CON CRON -->
     <div x-show="tab === 'cron'" x-cloak class="space-y-6">
         <form action="{{ route('admin.scraper.cron-settings') }}" method="POST" class="bg-[#14110E] border border-[#2B241C] rounded-2xl p-6 shadow-xl space-y-5">
@@ -1364,10 +1709,13 @@
                     </div>
 
                     @php
-                        $curLimit = (int) ($stats['cron_limit'] ?? 20);
-                        $qDdl = (int) ceil($curLimit / 3);
-                        $qTor = (int) ceil(($curLimit - $qDdl) / 2);
-                        $qCyber = max(0, $curLimit - $qDdl - $qTor);
+                        $curLimit = (int) ($stats['cron_limit'] ?? 30);
+                        $qDdl = (int) ceil($curLimit / 4);
+                        $qRem1 = max(0, $curLimit - $qDdl);
+                        $qTor = (int) ceil($qRem1 / 3);
+                        $qRem2 = max(0, $qRem1 - $qTor);
+                        $qCyber = (int) ceil($qRem2 / 2);
+                        $qMovies = max(0, $qRem2 - $qCyber);
                         $qProg = (int) ceil($qCyber / 3);
                         $qGame = (int) ceil(($qCyber - $qProg) / 2);
                         $qApk = max(0, $qCyber - $qProg - $qGame);
@@ -1375,15 +1723,15 @@
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-xs font-bold text-[#A8A199] uppercase tracking-wider">Límite por Ejecución</label>
-                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">REPARTO 5 CATEGORÍAS</span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">REPARTO 6 CATEGORÍAS</span>
                         </div>
                         <input type="number" name="cron_limit" min="1" max="50"
                                x-model.number="cronLimit"
-                               value="{{ $stats['cron_limit'] ?? 20 }}"
+                               value="{{ $stats['cron_limit'] ?? 30 }}"
                                class="w-full bg-[#12100E] border border-[#2B241C] focus:border-primary rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-colors">
                         <div class="mt-2 p-2.5 rounded-lg bg-[#0E0C0A] border border-[#262019] text-[10.5px] font-mono space-y-1.5">
                             <div class="flex items-center justify-between text-[#A8A199]">
-                                <span>Distribución (<span x-text="cronLimit">{{ $curLimit }}</span> apps):</span>
+                                <span>Distribución (<span x-text="cronLimit">{{ $curLimit }}</span> aportes):</span>
                                 <span class="text-emerald-400 font-bold">Reasignación Inteligente</span>
                             </div>
                             <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#1F1914] text-[10px]">
@@ -1407,9 +1755,14 @@
                                     <span>📱</span>
                                     <span x-text="`${quotaApk} Apps Android`">{{ $qApk }} Apps Android</span>
                                 </span>
+                                <span class="px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 font-semibold flex items-center gap-1">
+                                    <span>🎬</span>
+                                    <span x-text="`${quotaMovies} Películas`">{{ $qMovies }} Películas</span>
+                                </span>
                             </div>
                             <div class="pt-1 text-[9.5px] text-[#8C847A] flex items-center justify-between border-t border-[#1A1510]">
                                 <span>CyberMania: <strong class="text-white" x-text="quotaCyber">{{ $qCyber }}</strong> apps (<span x-text="`${quotaProg} prog + ${quotaGame} juegos + ${quotaApk} APKs`">{{ $qProg }} prog + {{ $qGame }} juegos + {{ $qApk }} APKs</span>)</span>
+                                <span>Películas Torrent: <strong class="text-rose-400" x-text="quotaMovies">{{ $qMovies }}</strong></span>
                             </div>
                         </div>
                         <p class="text-[10px] text-[#736B63] mt-1.5">Si algún scraper o categoría no tiene suficientes novedades en portada, sus cupos libres se transfieren automáticamente a los otros.</p>
@@ -1572,15 +1925,20 @@
 function scraperApp() {
     return {
     tab: (new URLSearchParams(window.location.search).get('tab')) || 'search',
-    cronLimit: {{ (int) ($stats['cron_limit'] ?? 20) }},
+    cronLimit: {{ (int) ($stats['cron_limit'] ?? 30) }},
     get quotaDdl() {
-        return Math.ceil(this.cronLimit / 3);
+        return Math.ceil(this.cronLimit / 4);
     },
     get quotaTor() {
-        return Math.ceil((this.cronLimit - this.quotaDdl) / 2);
+        const rem = Math.max(0, this.cronLimit - this.quotaDdl);
+        return Math.ceil(rem / 3);
     },
     get quotaCyber() {
-        return Math.max(0, this.cronLimit - this.quotaDdl - this.quotaTor);
+        const rem = Math.max(0, this.cronLimit - this.quotaDdl - this.quotaTor);
+        return Math.ceil(rem / 2);
+    },
+    get quotaMovies() {
+        return Math.max(0, this.cronLimit - this.quotaDdl - this.quotaTor - this.quotaCyber);
     },
     get quotaProg() {
         return Math.ceil(this.quotaCyber / 3);
@@ -1591,6 +1949,20 @@ function scraperApp() {
     get quotaApk() {
         return Math.max(0, this.quotaCyber - this.quotaProg - this.quotaGame);
     },
+    mejortorrentContentType: 'movies',
+    mejortorrentUrl: '',
+    mejortorrentImporting: false,
+    mejortorrentSyncing: false,
+    mejortorrentLimit: 6,
+    mejortorrentQuality: 'all',
+    mejortorrentQualityName: 'Todas las Películas',
+    mejortorrentApps: [],
+    mejortorrentCurrentPage: 1,
+    mejortorrentTotalPages: 1,
+    mejortorrentHasNext: false,
+    mejortorrentHasPrev: false,
+    mejortorrentLoading: false,
+    mejortorrentImportingUrl: null,
     dripMode: {{ ($stats['drip_mode'] ?? false) ? 'true' : 'false' }},
     togglingDrip: false,
     gridCols: 6,
@@ -1756,6 +2128,9 @@ function scraperApp() {
         this.fetchUpdatesCountAsync();
         this.fetchTorrentUpdatesCountAsync();
         this.fetchCybermaniaUpdatesCountAsync();
+        if (this.tab === 'mejortorrent') {
+            this.loadMejortorrent(1);
+        }
     },
 
     async fetchUpdatesCountAsync() {
@@ -2548,6 +2923,151 @@ function scraperApp() {
         this.viewingCybermaniaUpdatesOnly = !this.viewingCybermaniaUpdatesOnly;
         if (this.viewingCybermaniaUpdatesOnly && this.cybermaniaPendingUpdates.length === 0) {
             this.fetchCybermaniaUpdatesCountAsync();
+        }
+    },
+
+    setContentType(type) {
+        this.mejortorrentContentType = type;
+        this.mejortorrentApps = [];
+        this.loadMejortorrent(1, 'all');
+    },
+
+    async importMejortorrentSingleNow() {
+        if (!this.mejortorrentUrl) {
+            alert('Introduce una URL válida de la película o serie.');
+            return;
+        }
+        this.mejortorrentImporting = true;
+        try {
+            const endpoint = this.mejortorrentUrl.includes('/serie/')
+                ? '{{ route('admin.scraper.mejortorrent.import-series-single') }}'
+                : '{{ route('admin.scraper.mejortorrent.import-single') }}';
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ url: this.mejortorrentUrl })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.showToast('✓ ' + data.message);
+                this.mejortorrentUrl = '';
+                await this.loadMejortorrent(this.mejortorrentCurrentPage);
+            } else {
+                alert(data.message || 'Error al importar.');
+            }
+        } catch(e) {
+            alert('Error de conexión con el servidor.');
+        } finally {
+            this.mejortorrentImporting = false;
+        }
+    },
+
+    async loadMejortorrent(page = 1, quality = null) {
+        if (quality !== null) {
+            this.mejortorrentQuality = quality;
+            if (this.mejortorrentContentType === 'series') {
+                const names = {
+                    'all': 'Todas las Series',
+                    'hd': 'Series HD',
+                    '4k': 'Series 4K'
+                };
+                this.mejortorrentQualityName = names[quality] || 'Series TV';
+            } else {
+                const names = {
+                    'all': 'Todas las Películas',
+                    'hd': 'Películas HD (1080p BluRay)',
+                    '4k': 'Películas 4K UHD'
+                };
+                this.mejortorrentQualityName = names[quality] || 'Películas';
+            }
+        }
+        this.mejortorrentLoading = true;
+        try {
+            const endpoint = this.mejortorrentContentType === 'series'
+                ? '{{ route('admin.scraper.mejortorrent.series') }}'
+                : '{{ route('admin.scraper.mejortorrent.latest') }}';
+
+            const res = await fetch(`${endpoint}?page=${page}&quality=${this.mejortorrentQuality}`);
+            const data = await res.json();
+            if (data.success) {
+                this.mejortorrentApps = data.items;
+                this.mejortorrentCurrentPage = data.pagination.current_page;
+                this.mejortorrentTotalPages = data.pagination.total_pages;
+                this.mejortorrentHasNext = data.pagination.has_next;
+                this.mejortorrentHasPrev = data.pagination.has_prev;
+            } else {
+                this.showToast('Error al cargar catálogo: ' + (data.message || 'Error'));
+            }
+        } catch(e) {
+            this.showToast('Error de conexión al cargar catálogo');
+        } finally {
+            this.mejortorrentLoading = false;
+        }
+    },
+
+    async importMejortorrentCard(movie) {
+        if (this.mejortorrentImportingUrl === movie.url) return;
+        this.mejortorrentImportingUrl = movie.url;
+        try {
+            const endpoint = (this.mejortorrentContentType === 'series' || movie.url.includes('/serie/'))
+                ? '{{ route('admin.scraper.mejortorrent.import-series-single') }}'
+                : '{{ route('admin.scraper.mejortorrent.import-single') }}';
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ url: movie.url })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.showToast('✓ ' + data.message);
+                movie.is_imported = true;
+            } else {
+                alert(data.message || 'Error al importar');
+            }
+        } catch(e) {
+            alert('Error al conectar con el servidor');
+        } finally {
+            this.mejortorrentImportingUrl = null;
+        }
+    },
+
+    async syncMejortorrentNow() {
+        this.mejortorrentSyncing = true;
+        try {
+            const endpoint = this.mejortorrentContentType === 'series'
+                ? '{{ route('admin.scraper.mejortorrent.sync-series-latest') }}'
+                : '{{ route('admin.scraper.mejortorrent.sync-latest') }}';
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ limit: this.mejortorrentLimit, quality: this.mejortorrentQuality })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.showToast('✓ ' + data.message);
+                await this.loadMejortorrent(this.mejortorrentCurrentPage);
+            } else {
+                alert(data.message || 'Error al sincronizar');
+            }
+        } catch(e) {
+            alert('Error al sincronizar');
+        } finally {
+            this.mejortorrentSyncing = false;
         }
     },
 
