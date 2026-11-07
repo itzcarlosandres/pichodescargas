@@ -19,7 +19,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('scraper:sync {--force : Ejecutar incluso si el cron está desactivado en la configuración} {--fill-drafts=0 : Rellenar la cola con N borradores del catálogo}', function (HaxmacImporter $haxmac, TorrentmacImporter $torrentmac, CybermaniaImporter $cybermania) {
-    $isEnabled = filter_var(Setting::get('scraper_cron_enabled', false), FILTER_VALIDATE_BOOLEAN) || $this->option('force');
+    $isEnabled = filter_var(Setting::get('scraper_cron_enabled', true), FILTER_VALIDATE_BOOLEAN) || $this->option('force');
 
     if (! $isEnabled) {
         $this->warn('El cron del scraper está desactivado en la configuración. Usa --force para ejecutar manualmente.');
@@ -170,7 +170,8 @@ $applyFrequency = function ($event, string $freq) {
 // 1. Automated Unified Smart Sync (Orquesta Haxmac, Torrentmac y Cybermania con cuotas exactas y reasignación)
 $syncEvent = Schedule::command('scraper:sync')
     ->name('scraper-unified-sync')
-    ->withoutOverlapping(60);
+    ->withoutOverlapping(60)
+    ->appendOutputTo(storage_path('logs/scraper-cron.log'));
 
 $applyFrequency($syncEvent, $frequency);
 
