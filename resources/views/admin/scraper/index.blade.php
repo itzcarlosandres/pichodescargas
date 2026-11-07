@@ -1467,14 +1467,18 @@
             </div>
 
             <div class="p-4 rounded-xl bg-[#100E0C] border border-[#201C18] space-y-2">
-                <span class="text-xs font-bold text-[#A8A199] block">Instrucción para el Crontab del Servidor (o Probar en Consola):</span>
-                <p class="text-xs text-[#7A736A]">Para que las tareas programadas funcionen en tu servidor VPS o hosting, añade esta línea a tu `crontab -e`:</p>
-                <div class="p-2.5 rounded-lg bg-[#0A0908] border border-[#2A231C] text-xs font-mono text-primary select-all">
-                    * * * * * cd {{ base_path() }} && php artisan schedule:run >> /dev/null 2>&1
+                <span class="text-xs font-bold text-[#A8A199] block">Instrucción para el Cron de aaPanel o Crontab del Servidor:</span>
+                <p class="text-xs text-[#7A736A]">En <strong>aaPanel ➔ Cron</strong> (Tipo: Shell Script, Periodo: N Minutes = 1): <em>(NO incluyas asteriscos aquí)</em></p>
+                <div class="p-2.5 rounded-lg bg-[#0A0908] border border-emerald-500/30 text-xs font-mono text-emerald-400 select-all">
+                    cd {{ base_path() }} && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
+                </div>
+                <p class="text-[11px] text-[#7A736A] pt-1">Si usas la terminal tradicional con <code class="text-white">crontab -e</code>:</p>
+                <div class="p-2 rounded-lg bg-[#0A0908] border border-[#2A231C] text-xs font-mono text-primary select-all">
+                    * * * * * cd {{ base_path() }} && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
                 </div>
                 <p class="text-[11px] text-[#6E675E] pt-1">O ejecuta directamente para probar la sincronización de novedades en tu terminal:</p>
                 <div class="p-2 rounded-lg bg-[#0A0908] border border-[#2A231C] text-xs font-mono text-[#D4C9BC] select-all">
-                    php artisan haxmac:scrape --sync-latest
+                    /www/server/php/83/bin/php artisan scraper:sync --force
                 </div>
             </div>
 
