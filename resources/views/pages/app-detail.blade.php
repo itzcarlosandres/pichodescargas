@@ -305,25 +305,40 @@
                                 @endif
 
                                 <div class="mt-2 text-center sm:text-right w-full sm:w-auto" x-data>
-                                    <span class="text-xs text-[#8C847A] font-medium block">
-                                        {{ $application->version }} · {{ strtoupper($application->license ?? 'Free') }} · Universal
-                                    </span>
-                                    <div class="flex items-center justify-center sm:justify-end gap-2.5 mt-1">
-                                        <a class="sah-older text-xs text-[#8C847A] hover:text-primary transition-colors" href="#older-versions">
-                                            All older versions
-                                        </a>
-                                        <span class="text-zinc-600 text-xs">·</span>
-                                        <button type="button"
-                                                @click="$dispatch('open-report-modal')"
-                                                onclick="window.dispatchEvent(new CustomEvent('open-report-modal'))"
-                                                class="text-xs text-amber-500 hover:text-amber-400 font-medium inline-flex items-center gap-1 py-0.5 px-1.5 rounded-md hover:bg-amber-500/10 transition-colors cursor-pointer"
-                                                title="Reportar si el enlace no funciona">
-                                            <svg class="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                                            </svg>
-                                            <span>Reportar enlace</span>
-                                        </button>
-                                    </div>
+                                    @if(! $isMedia)
+                                        <span class="text-xs text-[#8C847A] font-medium block">
+                                            {{ $application->version }} · {{ strtoupper($application->license ?? 'Free') }} · Universal
+                                        </span>
+                                        <div class="flex items-center justify-center sm:justify-end gap-2.5 mt-1">
+                                            <a class="sah-older text-xs text-[#8C847A] hover:text-primary transition-colors" href="#older-versions">
+                                                All older versions
+                                            </a>
+                                            <span class="text-zinc-600 text-xs">·</span>
+                                            <button type="button"
+                                                    @click="$dispatch('open-report-modal')"
+                                                    onclick="window.dispatchEvent(new CustomEvent('open-report-modal'))"
+                                                    class="text-xs text-amber-500 hover:text-amber-400 font-medium inline-flex items-center gap-1 py-0.5 px-1.5 rounded-md hover:bg-amber-500/10 transition-colors cursor-pointer"
+                                                    title="Reportar si el enlace no funciona">
+                                                <svg class="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                                </svg>
+                                                <span>Reportar enlace</span>
+                                            </button>
+                                        </div>
+                                    @else
+                                        <div class="flex items-center justify-center sm:justify-end gap-2.5 mt-1">
+                                            <button type="button"
+                                                    @click="$dispatch('open-report-modal')"
+                                                    onclick="window.dispatchEvent(new CustomEvent('open-report-modal'))"
+                                                    class="text-xs text-amber-500 hover:text-amber-400 font-medium inline-flex items-center gap-1 py-0.5 px-1.5 rounded-md hover:bg-amber-500/10 transition-colors cursor-pointer"
+                                                    title="Reportar si el enlace no funciona">
+                                                <svg class="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                                </svg>
+                                                <span>Reportar enlace</span>
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
 

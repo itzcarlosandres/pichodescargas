@@ -1163,26 +1163,31 @@
                         :class="cybermaniaCategory === 'all' && !viewingCybermaniaUpdatesOnly ? 'bg-[#38BDF8] text-black font-black shadow-lg shadow-sky-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
                         class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
                     <span>🌐 Todos</span>
+                    <span class="text-[10px] opacity-75 font-mono">(4,198)</span>
                 </button>
                 <button type="button" @click="loadCybermania(1, 'appz')"
                         :class="cybermaniaCategory === 'appz' && !viewingCybermaniaUpdatesOnly ? 'bg-[#38BDF8] text-black font-black shadow-lg shadow-sky-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
                         class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
                     <span>💻 Programs (Appz)</span>
+                    <span class="text-[10px] opacity-75 font-mono font-bold text-amber-300">(2,896)</span>
                 </button>
                 <button type="button" @click="loadCybermania(1, 'android')"
                         :class="cybermaniaCategory === 'android' && !viewingCybermaniaUpdatesOnly ? 'bg-[#38BDF8] text-black font-black shadow-lg shadow-sky-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
                         class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
                     <span>📱 Android Apps (APKs)</span>
+                    <span class="text-[10px] opacity-75 font-mono">(893)</span>
                 </button>
                 <button type="button" @click="loadCybermania(1, 'games')"
                         :class="cybermaniaCategory === 'games' && !viewingCybermaniaUpdatesOnly ? 'bg-[#38BDF8] text-black font-black shadow-lg shadow-sky-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
                         class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
                     <span>🎮 PC Games</span>
+                    <span class="text-[10px] opacity-75 font-mono">(214)</span>
                 </button>
                 <button type="button" @click="loadCybermania(1, 'hardware')"
                         :class="cybermaniaCategory === 'hardware' && !viewingCybermaniaUpdatesOnly ? 'bg-[#38BDF8] text-black font-black shadow-lg shadow-sky-500/20' : 'bg-[#1A1612] text-[#8C847A] hover:text-white border border-[#2B231B]'"
                         class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5">
                     <span>⚙️ Hardware</span>
+                    <span class="text-[10px] opacity-75 font-mono">(132)</span>
                 </button>
             </div>
 
@@ -1326,6 +1331,9 @@
                  class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[#262019]">
                 <div class="text-xs text-[#8C847A] font-mono">
                     Página <strong class="text-white" x-text="cybermaniaCurrentPage"></strong> de <strong class="text-white" x-text="cybermaniaTotalPages"></strong>
+                    <template x-if="cybermaniaTotalItems > 0">
+                        <span class="text-[#8C847A] ml-1">(<strong class="text-[#38BDF8]" x-text="cybermaniaTotalItems.toLocaleString()"></strong> en el catálogo)</span>
+                    </template>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -1340,6 +1348,15 @@
                         <span>Siguiente</span>
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
+                </div>
+
+                <!-- Direct Page Jump Input -->
+                <div class="flex items-center gap-2 text-xs">
+                    <span class="text-[#736B63] text-[11px] hidden md:inline">Ir a pág:</span>
+                    <input type="number" min="1" :max="cybermaniaTotalPages" 
+                           @keydown.enter.prevent="goToCybermaniaPage(parseInt($event.target.value))"
+                           :placeholder="cybermaniaCurrentPage"
+                           class="w-16 bg-[#12100E] border border-[#2B241C] focus:border-[#38BDF8] rounded-lg px-2 py-1 text-center font-mono text-xs text-white focus:outline-none">
                 </div>
             </div>
         </div>
@@ -2023,6 +2040,7 @@ function scraperApp() {
     cybermaniaSearchTotal: 0,
     cybermaniaCurrentPage: 1,
     cybermaniaTotalPages: 1,
+    cybermaniaTotalItems: 0,
     cybermaniaHasNext: false,
     cybermaniaHasPrev: false,
     cybermaniaLoading: false,
@@ -2765,6 +2783,7 @@ function scraperApp() {
                 this.cybermaniaApps = data.items;
                 this.cybermaniaCurrentPage = data.pagination.current_page;
                 this.cybermaniaTotalPages = data.pagination.total_pages;
+                this.cybermaniaTotalItems = data.pagination.total_items || 0;
                 this.cybermaniaHasNext = data.pagination.has_next;
                 this.cybermaniaHasPrev = data.pagination.has_prev;
             } else {
@@ -2774,6 +2793,16 @@ function scraperApp() {
             this.showToast('✗ Error de conexión con CyberMania');
         } finally {
             this.cybermaniaLoading = false;
+        }
+    },
+
+    goToCybermaniaPage(page) {
+        if (!page || isNaN(page)) return;
+        page = parseInt(page);
+        if (page >= 1 && page <= this.cybermaniaTotalPages) {
+            this.loadCybermania(page);
+        } else {
+            this.showToast('Página inválida. Rango: 1 - ' + this.cybermaniaTotalPages);
         }
     },
 

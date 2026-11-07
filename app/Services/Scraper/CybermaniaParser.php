@@ -329,11 +329,35 @@ class CybermaniaParser
     }
 
     /**
+     * Extract article count for each category from CyberMania header navigation
+     *
+     * @return array<string, int>
+     */
+    public function parseCategoryCounts(string $html): array
+    {
+        $crawler = new Crawler($html);
+        $counts = [];
+
+        $crawler->filter('nav a, header a, a[title]')->each(function (Crawler $node) use (&$counts) {
+            $href = $node->attr('href') ?? '';
+            $pNode = $node->filter('.read p, p');
+            if ($pNode->count() > 0 && preg_match('/category\/([a-z0-9_-]+)/i', $href, $m)) {
+                $count = (int) preg_replace('/[^0-9]/', '', $pNode->first()->text());
+                if ($count > 0) {
+                    $counts[$m[1]] = $count;
+                }
+            }
+        });
+
+        return $counts;
+    }
+
+    /**
      * Parse pagination controls
      *
-     * @return array{current_page: int, total_pages: int, has_next: bool, has_prev: bool}
+     * @return array{current_page: int, total_pages: int, total_items: int, has_next: bool, has_prev: bool}
      */
-    public function parsePagination(string $html, int $currentPage = 1): array
+    public function parsePagination(string $html, int $currentPage = 1, string $category = 'all'): array
     {
         $crawler = new Crawler($html);
         $hasNext = false;
@@ -343,9 +367,23 @@ class CybermaniaParser
             $hasNext = true;
         }
 
+        $counts = $this->parseCategoryCounts($html);
+        $totalItems = 0;
+        if (! empty($counts)) {
+            if ($category === 'all') {
+                $totalItems = array_sum($counts);
+            } elseif (isset($counts[$category])) {
+                $totalItems = $counts[$category];
+            }
+        }
+
+        // Standard 21 items per page on CyberMania
+        $totalPages = $totalItems > 0 ? (int) ceil($totalItems / 21) : ($hasNext ? $currentPage + 1 : $currentPage);
+
         return [
             'current_page' => $currentPage,
-            'total_pages' => $hasNext ? $currentPage + 1 : $currentPage,
+            'total_pages' => max($totalPages, $currentPage),
+            'total_items' => $totalItems,
             'has_next' => $hasNext,
             'has_prev' => $hasPrev,
         ];

@@ -52,7 +52,7 @@ class CybermaniaImporter
 
         $cards = $this->parser->parseAppCards($html);
         $items = $annotate ? $this->annotateCards($cards) : $cards;
-        $pagination = $this->parser->parsePagination($html, $page);
+        $pagination = $this->parser->parsePagination($html, $page, $category);
 
         return [
             'items' => $items,
@@ -85,7 +85,7 @@ class CybermaniaImporter
 
         $cards = $this->parser->parseAppCards($html);
         $items = $annotate ? $this->annotateCards($cards) : $cards;
-        $pagination = $this->parser->parsePagination($html, $page);
+        $pagination = $this->parser->parsePagination($html, $page, $category);
 
         return [
             'items' => $items,
