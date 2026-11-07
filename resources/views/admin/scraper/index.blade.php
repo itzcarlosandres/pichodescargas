@@ -2881,7 +2881,11 @@ function scraperApp() {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({ url: app.url, download_images: true })
+                body: JSON.stringify({ 
+                    url: app.url, 
+                    download_images: true,
+                    category_slug: app.category_slug || null
+                })
             });
             const data = await res.json();
             if (data.success) {

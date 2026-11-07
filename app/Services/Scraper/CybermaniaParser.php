@@ -97,7 +97,7 @@ class CybermaniaParser
             }
 
             // Determine Target Category Slug
-            $categoryInfo = $this->detectCategoryFromUrl($url, $node);
+            $categoryInfo = $this->detectCategoryFromUrl($url, $node, $rawTitle);
 
             $apps[] = [
                 'name' => $rawTitle,
@@ -167,7 +167,7 @@ class CybermaniaParser
 
         $version = $this->extractVersion($rawTitle);
         $cleanName = $this->cleanAppName($rawTitle, $version);
-        $categoryInfo = $this->detectCategoryFromUrl($sourceUrl, $crawler);
+        $categoryInfo = $this->detectCategoryFromUrl($sourceUrl, $crawler, $rawTitle);
 
         // Extract Icon
         $iconUrl = null;
@@ -394,28 +394,66 @@ class CybermaniaParser
      *
      * @return array{slug: string, name: string}
      */
-    public function detectCategoryFromUrl(string $url, ?Crawler $crawler = null): array
+    public function detectCategoryFromUrl(string $url, ?Crawler $crawler = null, ?string $rawTitle = null): array
     {
         $lowerUrl = strtolower($url);
 
-        if (str_contains($lowerUrl, '/android/') || str_contains($lowerUrl, 'android')) {
+        // 1. Direct URL Path Check (Most accurate on CyberMania)
+        // /appz/ => Windows PC Software (Programs)
+        if (str_contains($lowerUrl, '/appz/') || str_contains($lowerUrl, 'category/appz')) {
             return [
-                'slug' => 'apps-android',
-                'name' => 'Android Apps',
+                'slug' => 'programas',
+                'name' => 'Programs',
             ];
         }
 
-        if (str_contains($lowerUrl, '/games/') || str_contains($lowerUrl, 'games')) {
+        // /games/ => PC Games
+        if (str_contains($lowerUrl, '/games/') || str_contains($lowerUrl, 'category/games')) {
             return [
                 'slug' => 'juegos-pc',
                 'name' => 'PC Games',
             ];
         }
 
+        // /android/ => Android Apps
+        if (str_contains($lowerUrl, '/android/') || str_contains($lowerUrl, 'category/android')) {
+            return [
+                'slug' => 'apps-android',
+                'name' => 'Android Apps',
+            ];
+        }
+
+        // /hardware/ or /cybermania/ => Windows Utilities (Programs)
+        if (str_contains($lowerUrl, '/hardware/') || str_contains($lowerUrl, '/cybermania/')) {
+            return [
+                'slug' => 'programas',
+                'name' => 'Programs',
+            ];
+        }
+
+        // 2. Title heuristic (e.g. if URL is a plain slug from search)
+        if ($rawTitle) {
+            $lowerTitle = strtolower($rawTitle);
+            if (str_contains($lowerTitle, '(android)') || str_contains($lowerTitle, '[android]') || str_contains($lowerTitle, ' apk')) {
+                return [
+                    'slug' => 'apps-android',
+                    'name' => 'Android Apps',
+                ];
+            }
+            if (str_contains($lowerTitle, '(pc)') || str_contains($lowerTitle, ' pc game')) {
+                return [
+                    'slug' => 'juegos-pc',
+                    'name' => 'PC Games',
+                ];
+            }
+        }
+
+        // 3. Post Breadcrumbs / Post Metadata ONLY (Never inspect whole document navbar)
         if ($crawler) {
             $catText = '';
             try {
-                $crawler->filter('a[rel*="category"], .category a, .cat-links a, .post-category a, a[href*="/category/"], .breadcrumbs a')->each(function (Crawler $node) use (&$catText) {
+                // Look strictly inside breadcrumbs or post metadata, NOT global header nav
+                $crawler->filter('.breadcrumbs a, #crumbs a, .post_info a, .entry-meta a')->each(function (Crawler $node) use (&$catText) {
                     $catText .= ' '.strtolower($node->text()).' '.strtolower((string) $node->attr('href'));
                 });
             } catch (\Throwable) {
@@ -429,7 +467,7 @@ class CybermaniaParser
                 ];
             }
 
-            if (str_contains($catText, 'games') || str_contains($catText, 'game') || str_contains($catText, 'juegos')) {
+            if (str_contains($catText, 'games') || str_contains($catText, 'juegos')) {
                 return [
                     'slug' => 'juegos-pc',
                     'name' => 'PC Games',
@@ -437,7 +475,7 @@ class CybermaniaParser
             }
         }
 
-        // Default to Programs (Windows PC) for /appz/, /hardware/, etc.
+        // 4. Default to Programs (Windows PC)
         return [
             'slug' => 'programas',
             'name' => 'Programs',

@@ -140,7 +140,7 @@ class CybermaniaImporter
     /**
      * Import a single application from CyberMania by its URL
      */
-    public function importAppByUrl(string $url, bool $downloadImages = true, ?bool $forcePublished = null): ?Application
+    public function importAppByUrl(string $url, bool $downloadImages = true, ?bool $forcePublished = null, ?string $categorySlug = null): ?Application
     {
         $html = $this->client->fetchHtml($url, false);
         if (! $html) {
@@ -154,6 +154,18 @@ class CybermaniaImporter
             Log::error("CybermaniaImporter: Could not parse details from {$url}");
 
             return null;
+        }
+
+        // Allow explicit category override if provided
+        if (! empty($categorySlug)) {
+            $appData['category_slug'] = $categorySlug;
+            if ($categorySlug === 'programas') {
+                $appData['platform'] = 'Windows 11 / 10';
+            } elseif ($categorySlug === 'juegos-pc') {
+                $appData['platform'] = 'Windows PC';
+            } elseif ($categorySlug === 'apps-android') {
+                $appData['platform'] = 'Android';
+            }
         }
 
         // 1. Resolve Target Category in PichoDescargas (Strict mapping to programas, juegos-pc, or apps-android)

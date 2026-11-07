@@ -753,10 +753,12 @@ class ScraperController extends Controller
         $request->validate([
             'url' => 'required|url',
             'download_images' => 'nullable|boolean',
+            'category_slug' => 'nullable|string',
         ]);
 
         $downloadImages = $request->boolean('download_images', true);
-        $app = $this->cybermaniaImporter->importAppByUrl($request->url, $downloadImages);
+        $categorySlug = $request->input('category_slug');
+        $app = $this->cybermaniaImporter->importAppByUrl($request->url, $downloadImages, null, $categorySlug);
 
         if ($app) {
             return response()->json([
