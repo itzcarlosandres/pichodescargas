@@ -20,8 +20,8 @@ return new class extends Migration
             $programasCategory = Category::firstOrCreate(
                 ['slug' => 'programas'],
                 [
-                    'name' => 'Programas',
-                    'description' => 'Programas y software para PC Windows',
+                    'name' => 'Programs',
+                    'description' => 'Verified programs, software tools, and utilities for Windows PC.',
                     'icon' => 'programas',
                     'sort_order' => 1,
                     'is_active' => true,

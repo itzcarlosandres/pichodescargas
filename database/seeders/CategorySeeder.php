@@ -14,9 +14,9 @@ class CategorySeeder extends Seeder
     {
         $categories = [
             [
-                'name' => 'Programas',
+                'name' => 'Programs',
                 'slug' => 'programas',
-                'description' => 'Programas y software para PC Windows',
+                'description' => 'Verified programs, software tools, and utilities for Windows PC.',
                 'icon' => 'programas',
                 'sort_order' => 1,
                 'is_active' => true,
@@ -24,23 +24,23 @@ class CategorySeeder extends Seeder
             [
                 'name' => 'Mac Apps',
                 'slug' => 'mac-apps',
-                'description' => 'Aplicaciones y software para macOS',
+                'description' => 'Universal applications and productivity software for macOS.',
                 'icon' => 'mac-apps',
                 'sort_order' => 2,
                 'is_active' => true,
             ],
             [
-                'name' => 'Apps Android',
+                'name' => 'Android Apps',
                 'slug' => 'apps-android',
-                'description' => 'Aplicaciones y herramientas APK para Android',
+                'description' => 'Verified APK applications, premium mods, and mobile tools for Android.',
                 'icon' => 'apps-android',
                 'sort_order' => 3,
                 'is_active' => true,
             ],
             [
-                'name' => 'Juegos PC',
+                'name' => 'PC Games',
                 'slug' => 'juegos-pc',
-                'description' => 'Juegos completos para PC Windows',
+                'description' => 'Full PC games, repacks, and direct installers for Windows PC.',
                 'icon' => 'juegos-pc',
                 'sort_order' => 4,
                 'is_active' => true,
@@ -48,9 +48,17 @@ class CategorySeeder extends Seeder
             [
                 'name' => 'Free Movies',
                 'slug' => 'peliculas-gratis',
-                'description' => 'Películas, estrenos y series en Full HD',
+                'description' => 'High-definition movies, premieres, and cinema releases.',
                 'icon' => 'peliculas-gratis',
                 'sort_order' => 5,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'TV Series',
+                'slug' => 'series-tv',
+                'description' => 'Complete TV series, full seasons, and high-definition episodes.',
+                'icon' => 'series-tv',
+                'sort_order' => 6,
                 'is_active' => true,
             ],
         ];

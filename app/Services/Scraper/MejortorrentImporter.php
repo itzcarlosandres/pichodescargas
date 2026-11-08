@@ -46,8 +46,8 @@ class MejortorrentImporter
         return Category::firstOrCreate(
             ['slug' => 'series-tv'],
             [
-                'name' => 'Series TV',
-                'description' => 'Descarga series de televisión completas por torrent gratis en alta definición.',
+                'name' => 'TV Series',
+                'description' => 'Complete TV series, full seasons, and high-definition episodes.',
                 'icon' => 'tv',
                 'sort_order' => 6,
                 'is_active' => true,

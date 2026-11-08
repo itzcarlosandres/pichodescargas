@@ -9,11 +9,11 @@
             'accent_glow' => 'from-sky-500/20 via-sky-500/5 to-transparent',
             'border_hover' => 'group-hover:border-sky-500/50',
             'icon_bg' => 'bg-gradient-to-br from-sky-500/20 to-blue-600/30 text-sky-400 border-sky-500/30 shadow-sky-500/20',
-            'tags' => ['Productividad', 'Diseño', 'Office', 'Antivirus'],
+            'tags' => ['Productivity', 'Design', 'Office', 'Antivirus'],
             'tag_style' => 'bg-sky-500/10 text-sky-300 border-sky-500/20',
-            'btn_text' => 'Explorar Programas',
+            'btn_text' => 'Explore Programs',
             'btn_hover' => 'group-hover:bg-sky-500 group-hover:text-white',
-            'default_desc' => 'Software de productividad, edición, diseño y utilidades full para Windows.',
+            'default_desc' => 'Full productivity software, editing, design tools, and utilities for Windows.',
         ],
         'mac-apps' => [
             'platform' => 'MACOS SYSTEM',
@@ -22,11 +22,11 @@
             'accent_glow' => 'from-slate-200/15 via-slate-400/5 to-transparent',
             'border_hover' => 'group-hover:border-slate-300/50',
             'icon_bg' => 'bg-gradient-to-br from-slate-200/20 to-slate-400/30 text-slate-200 border-slate-300/30 shadow-slate-300/20',
-            'tags' => ['M1 - M4', 'DMG / PKG', 'Gatekeeper', 'Sin SIP'],
+            'tags' => ['M1 - M4', 'DMG / PKG', 'Gatekeeper', 'SIP-Free'],
             'tag_style' => 'bg-slate-400/10 text-slate-200 border-slate-400/20',
-            'btn_text' => 'Explorar Mac Apps',
+            'btn_text' => 'Explore Mac Apps',
             'btn_hover' => 'group-hover:bg-slate-200 group-hover:text-slate-950',
-            'default_desc' => 'Aplicaciones nativas optimizadas para macOS, aceleradas en Apple Silicon e Intel.',
+            'default_desc' => 'Native applications optimized for macOS, accelerated on Apple Silicon and Intel.',
         ],
         'apps-android' => [
             'platform' => 'ANDROID OS',
@@ -35,44 +35,44 @@
             'accent_glow' => 'from-emerald-500/20 via-emerald-500/5 to-transparent',
             'border_hover' => 'group-hover:border-emerald-500/50',
             'icon_bg' => 'bg-gradient-to-br from-emerald-500/20 to-teal-600/30 text-emerald-400 border-emerald-500/30 shadow-emerald-500/20',
-            'tags' => ['Sin Anuncios', 'Pro / VIP', 'Anti-Ban', 'Sin Root'],
+            'tags' => ['Ad-Free', 'Pro / VIP', 'Anti-Ban', 'No Root'],
             'tag_style' => 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
-            'btn_text' => 'Explorar Android',
+            'btn_text' => 'Explore Android',
             'btn_hover' => 'group-hover:bg-emerald-500 group-hover:text-white',
-            'default_desc' => 'APKs modificados, herramientas premium liberadas y utilidades móviles verificadas.',
+            'default_desc' => 'Modified APKs, unlocked premium tools, and verified mobile utilities.',
         ],
         'juegos-pc' => [
             'platform' => 'PC GAMING',
-            'badge' => 'Full Español • Repacks • Directo',
+            'badge' => 'Full English & Multi • Repacks • Direct',
             'badge_bg' => 'bg-purple-500/10 text-purple-400 border-purple-500/25',
             'accent_glow' => 'from-purple-500/25 via-pink-500/5 to-transparent',
             'border_hover' => 'group-hover:border-purple-500/50',
             'icon_bg' => 'bg-gradient-to-br from-purple-500/20 to-pink-600/30 text-purple-400 border-purple-500/30 shadow-purple-500/20',
-            'tags' => ['Todos los DLCs', 'Steam Fix', 'Acción', 'Repack'],
+            'tags' => ['All DLCs', 'Steam Fix', 'Action', 'Repack'],
             'tag_style' => 'bg-purple-500/10 text-purple-300 border-purple-500/20',
-            'btn_text' => 'Explorar Juegos',
+            'btn_text' => 'Explore PC Games',
             'btn_hover' => 'group-hover:bg-purple-500 group-hover:text-white',
-            'default_desc' => 'Títulos completos para ordenador, instaladores actualizados y sin complicaciones.',
+            'default_desc' => 'Complete PC game releases, updated installers, and clean packages.',
         ],
     ];
 @endphp
 
-<section class="mb-10" aria-label="Categorías principales">
+<section class="mb-10" aria-label="Main categories">
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 mb-5">
         <div>
             <div class="flex items-center gap-2 mb-1.5">
                 <span class="w-2.5 h-2.5 rounded-[3px] bg-primary shadow-sm shadow-primary/50"></span>
                 <span class="text-[11px] font-bold text-primary uppercase tracking-widest font-heading">
-                    Ecosistemas de Descarga
+                    Download Ecosystems
                 </span>
             </div>
             <h2 class="text-xl sm:text-2xl font-black text-[#1C1814] dark:text-white tracking-tight font-heading">
-                Explora por Plataforma
+                Explore by Platform
             </h2>
         </div>
         <p class="text-xs text-[#7E776F] dark:text-[#A1A1A6] max-w-sm">
-            Descargas directas, paquetes limpios y software verificado organizado para cada dispositivo.
+            Direct downloads, clean packages, and verified software organized for every device.
         </p>
     </div>
 
@@ -82,16 +82,16 @@
             @php
                 $meta = $categoryMeta[$category->slug] ?? [
                     'platform' => strtoupper($category->name),
-                    'badge' => 'Verificado',
+                    'badge' => 'Verified',
                     'badge_bg' => 'bg-primary/10 text-primary border-primary/20',
                     'accent_glow' => 'from-primary/20 via-primary/5 to-transparent',
                     'border_hover' => 'group-hover:border-primary/50',
                     'icon_bg' => 'bg-primary/10 text-primary border-primary/30 shadow-primary/20',
-                    'tags' => ['Descarga Directa', 'Seguro'],
+                    'tags' => ['Direct Download', 'Safe'],
                     'tag_style' => 'bg-white/5 text-white/80 border-white/10',
-                    'btn_text' => 'Ver Categoría',
+                    'btn_text' => 'View Category',
                     'btn_hover' => 'group-hover:bg-primary group-hover:text-white',
-                    'default_desc' => $category->description ?: 'Explora las mejores descargas disponibles en esta categoría.',
+                    'default_desc' => $category->description ?: 'Explore the best verified downloads available in this category.',
                 ];
                 $appsCount = $category->published_applications_count ?? $category->applications()->count();
             @endphp

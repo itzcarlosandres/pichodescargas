@@ -599,8 +599,8 @@ class CybermaniaImporter
             return Category::firstOrCreate(
                 ['slug' => 'programas'],
                 [
-                    'name' => 'Programas',
-                    'description' => 'Programas y software para PC Windows',
+                    'name' => 'Programs',
+                    'description' => 'Verified programs, software tools, and utilities for Windows PC.',
                     'icon' => 'programas',
                     'is_active' => true,
                     'sort_order' => 1,
@@ -622,8 +622,8 @@ class CybermaniaImporter
             return Category::firstOrCreate(
                 ['slug' => 'juegos-pc'],
                 [
-                    'name' => 'Juegos PC',
-                    'description' => 'Juegos completos para PC Windows',
+                    'name' => 'PC Games',
+                    'description' => 'Full PC games, repacks, and direct installers for Windows PC.',
                     'icon' => 'juegos-pc',
                     'is_active' => true,
                     'sort_order' => 4,
@@ -645,8 +645,8 @@ class CybermaniaImporter
             return Category::firstOrCreate(
                 ['slug' => 'apps-android'],
                 [
-                    'name' => 'Apps Android',
-                    'description' => 'Aplicaciones y herramientas APK para Android',
+                    'name' => 'Android Apps',
+                    'description' => 'Verified APK applications, premium mods, and mobile tools for Android.',
                     'icon' => 'apps-android',
                     'is_active' => true,
                     'sort_order' => 3,

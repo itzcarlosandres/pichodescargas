@@ -1,6 +1,6 @@
 <x-app-layout>
-    @section('title', setting('seo_meta_title', 'Las mejores descargas de programas, apps y juegos - ' . config('app.name')))
-    @section('description', setting('seo_meta_description', 'Descargas directas y verificadas para Windows, Mac, Android y juegos.'))
+    @section('title', setting('seo_meta_title', 'Best Free Software, Apps & Games Downloads - ' . config('app.name')))
+    @section('description', setting('seo_meta_description', 'Curated, direct and verified downloads for Windows, Mac, Android and games.'))
     @section('og_image', asset('images/og-share.jpg'))
     @section('canonical', route('home'))
 
@@ -11,7 +11,7 @@
         "@@type": "WebSite",
         "name": "{{ setting('site_name', 'Picho') }}{{ setting('site_name_highlight', 'Descargas') }}",
         "url": "{{ route('home') }}",
-        "description": "{{ addslashes(setting('seo_meta_description', 'Descargas directas y verificadas.')) }}",
+        "description": "{{ addslashes(setting('seo_meta_description', 'Curated, direct and verified downloads.')) }}",
         "potentialAction": {
             "@@type": "SearchAction",
             "target": "{{ route('search') }}?q={search_term_string}",
@@ -57,7 +57,7 @@
                     <a href="{{ route('category', 'apps-android') }}">Android Apps</a>
                     <a href="{{ route('category', 'juegos-pc') }}">PC Games</a>
                     <a href="{{ route('category', 'peliculas-gratis') }}">Free Movies</a>
-                    <a href="{{ route('category', 'series-tv') }}">Series TV</a>
+                    <a href="{{ route('category', 'series-tv') }}">TV Series</a>
                     <a href="{{ route('popular') }}">Top Downloads</a>
                 </div>
             </div>
@@ -119,13 +119,13 @@
                 'peliculas-gratis' => [
                     'dot' => 'bg-rose-400 shadow-rose-400/50',
                     'border' => 'border-rose-500/20',
-                    'tag' => 'CINE & STREAMING',
+                    'tag' => 'MOVIES & STREAMING',
                     'text' => 'Full HD movies, releases and cinema streams.',
                 ],
                 'series-tv' => [
                     'dot' => 'bg-violet-400 shadow-violet-400/50',
                     'border' => 'border-violet-500/20',
-                    'tag' => 'SERIES & TEMPORADAS',
+                    'tag' => 'TV SERIES & SEASONS',
                     'text' => 'Full TV series, complete seasons and HD episodes.',
                 ],
             ];
@@ -149,13 +149,18 @@
                     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 pb-2.5 border-b border-slate-200/80 dark:border-white/[0.08]">
                         <div class="flex items-center gap-2.5">
                             <span class="w-2.5 h-2.5 rounded-[3px] {{ $meta['dot'] }} inline-block shadow-sm"></span>
-                            <div class="flex items-center gap-2">
-                                <h2 id="cat-heading-{{ $category->slug }}" class="font-heading text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-wider uppercase">
-                                    {{ $category->name }}
-                                </h2>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-[#A1A1A6] border border-slate-200/80 dark:border-white/10 uppercase tracking-widest hidden sm:inline-block">
-                                    {{ $meta['tag'] }}
-                                </span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 id="cat-heading-{{ $category->slug }}" class="font-heading text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-wider uppercase">
+                                        {{ $category->name }}
+                                    </h2>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-[#A1A1A6] border border-slate-200/80 dark:border-white/10 uppercase tracking-widest hidden sm:inline-block">
+                                        {{ $meta['tag'] }}
+                                    </span>
+                                </div>
+                                <p class="text-[11px] sm:text-xs text-slate-500 dark:text-[#8E8D9A] mt-0.5 font-medium">
+                                    {{ $category->description ?: $meta['text'] }}
+                                </p>
                             </div>
                         </div>
 

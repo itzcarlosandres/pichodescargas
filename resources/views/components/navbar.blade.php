@@ -79,7 +79,7 @@
                         <a href="{{ route('category', 'series-tv') }}"
                            class="hover:text-[#0071E3] dark:hover:text-white transition-all flex items-center gap-1.5 py-1.5 px-2 xl:px-2.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer whitespace-nowrap shrink-0 {{ request()->is('category/series-tv*') || request()->is('category/series*') ? 'text-[#0071E3] dark:text-white font-semibold' : 'text-[#38322B]/90 dark:text-[#F6F3EC]/90' }}">
                             <x-lucide-tv class="w-4 h-4 text-violet-400 flex-shrink-0" />
-                            <span class="whitespace-nowrap">Series TV</span>
+                            <span class="whitespace-nowrap">TV Series</span>
                         </a>
                     </li>
 
@@ -243,7 +243,7 @@
                             <x-lucide-tv class="w-4 h-4" />
                         </div>
                         <div class="truncate">
-                            <span class="block font-semibold text-xs leading-tight group-hover:text-[#0071E3] dark:group-hover:text-white transition-colors">Series TV</span>
+                            <span class="block font-semibold text-xs leading-tight group-hover:text-[#0071E3] dark:group-hover:text-white transition-colors">TV Series</span>
                             <span class="block text-[10px] text-[#8C847A] dark:text-[#A1A1AA]">Full Seasons &amp; HD Episodes</span>
                         </div>
                     </div>

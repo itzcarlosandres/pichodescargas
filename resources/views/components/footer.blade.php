@@ -190,7 +190,7 @@
                         <div class="flex items-center gap-2.5 min-w-0">
                             <x-lucide-tv class="w-4 h-4 text-violet-400 shrink-0" />
                             <div class="truncate">
-                                <span class="font-semibold text-[#1C1814] dark:text-neutral-200 group-hover:text-violet-400 transition-colors block truncate">Series TV</span>
+                                <span class="font-semibold text-[#1C1814] dark:text-neutral-200 group-hover:text-violet-400 transition-colors block truncate">TV Series</span>
                                 <span class="text-[10.5px] text-[#7E756B] dark:text-[#6E7681] block">Full Seasons &amp; Episodes</span>
                             </div>
                         </div>
