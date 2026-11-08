@@ -566,6 +566,7 @@ class ScraperController extends Controller
                 'success' => true,
                 'query' => $request->q,
                 'total' => count($data['items']),
+                'items' => $data['items'],
                 'results' => $data['items'],
                 'pagination' => $data['pagination'],
             ]);
@@ -725,6 +726,7 @@ class ScraperController extends Controller
                 'success' => true,
                 'query' => $request->q,
                 'total' => count($data['items']),
+                'items' => $data['items'],
                 'results' => $data['items'],
                 'pagination' => $data['pagination'],
             ]);

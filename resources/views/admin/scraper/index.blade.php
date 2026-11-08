@@ -2821,7 +2821,7 @@ function scraperApp() {
             });
             const data = await res.json();
             if (data.success) {
-                this.cybermaniaSearchResults = data.items;
+                this.cybermaniaSearchResults = data.items || data.results || [];
                 this.cybermaniaSearchTotal = data.total;
                 this.cybermaniaHasSearched = true;
             } else {

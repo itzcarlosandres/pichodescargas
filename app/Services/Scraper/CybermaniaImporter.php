@@ -170,29 +170,7 @@ class CybermaniaImporter
 
         // 1. Resolve Target Category in PichoDescargas (Strict mapping to programas, juegos-pc, or apps-android)
         $targetSlug = $appData['category_slug'] ?? 'programas';
-        $category = Category::where('slug', $targetSlug)->first();
-        if (! $category) {
-            $catNames = [
-                'programas' => 'Programas',
-                'juegos-pc' => 'Juegos PC',
-                'apps-android' => 'Apps Android',
-            ];
-            $category = Category::firstOrCreate(
-                ['slug' => $targetSlug],
-                [
-                    'name' => $catNames[$targetSlug] ?? ($appData['category_name'] ?? ucfirst($targetSlug)),
-                    'description' => "Descargas para {$targetSlug}",
-                    'icon' => $targetSlug,
-                    'is_active' => true,
-                    'sort_order' => match ($targetSlug) {
-                        'programas' => 1,
-                        'apps-android' => 3,
-                        'juegos-pc' => 4,
-                        default => 5,
-                    },
-                ]
-            );
-        }
+        $category = $this->resolveCybermaniaCategory($targetSlug);
 
         // 2. Resolve Existing Application via 4-tier deduplication
         $existing = $this->resolveExistingApplication($appData);
@@ -562,7 +540,13 @@ class CybermaniaImporter
                 }
 
                 try {
-                    $app = $this->importAppByUrl($card['url'], true, $publishImmediately);
+                    $targetCategorySlug = $card['category_slug'] ?? match ($category) {
+                        'appz' => 'programas',
+                        'android' => 'apps-android',
+                        'games' => 'juegos-pc',
+                        default => null,
+                    };
+                    $app = $this->importAppByUrl($card['url'], true, $publishImmediately, $targetCategorySlug);
                     if ($app) {
                         if ($card['has_update']) {
                             $updated++;
@@ -592,6 +576,87 @@ class CybermaniaImporter
             'failed' => $failed,
             'items' => $items,
         ];
+    }
+
+    /**
+     * Resiliently resolve Category model for CyberMania imports
+     */
+    public function resolveCybermaniaCategory(?string $slug = null): Category
+    {
+        $normalized = strtolower(trim((string) $slug));
+
+        // 1. Programas (Windows Software, Tools, Hardware)
+        if (in_array($normalized, ['programas', 'programs', 'appz', 'software', 'windows', 'hardware', 'utilidades', ''])) {
+            $category = Category::whereIn('slug', ['programas', 'programs'])
+                ->orWhereIn('name', ['Programas', 'Programs'])
+                ->orWhere('id', 1)
+                ->first();
+
+            if ($category) {
+                return $category;
+            }
+
+            return Category::firstOrCreate(
+                ['slug' => 'programas'],
+                [
+                    'name' => 'Programas',
+                    'description' => 'Programas y software para PC Windows',
+                    'icon' => 'programas',
+                    'is_active' => true,
+                    'sort_order' => 1,
+                ]
+            );
+        }
+
+        // 2. Juegos PC
+        if (in_array($normalized, ['juegos-pc', 'games', 'juegos', 'pc-games'])) {
+            $category = Category::whereIn('slug', ['juegos-pc', 'games', 'pc-games'])
+                ->orWhereIn('name', ['Juegos PC', 'PC Games'])
+                ->orWhere('id', 4)
+                ->first();
+
+            if ($category) {
+                return $category;
+            }
+
+            return Category::firstOrCreate(
+                ['slug' => 'juegos-pc'],
+                [
+                    'name' => 'Juegos PC',
+                    'description' => 'Juegos completos para PC Windows',
+                    'icon' => 'juegos-pc',
+                    'is_active' => true,
+                    'sort_order' => 4,
+                ]
+            );
+        }
+
+        // 3. Android Apps
+        if (in_array($normalized, ['apps-android', 'android', 'apk'])) {
+            $category = Category::whereIn('slug', ['apps-android', 'android'])
+                ->orWhereIn('name', ['Apps Android', 'Android Apps'])
+                ->orWhere('id', 3)
+                ->first();
+
+            if ($category) {
+                return $category;
+            }
+
+            return Category::firstOrCreate(
+                ['slug' => 'apps-android'],
+                [
+                    'name' => 'Apps Android',
+                    'description' => 'Aplicaciones y herramientas APK para Android',
+                    'icon' => 'apps-android',
+                    'is_active' => true,
+                    'sort_order' => 3,
+                ]
+            );
+        }
+
+        return Category::where('slug', $normalized)->first()
+            ?? Category::where('slug', 'programas')->first()
+            ?? Category::first();
     }
 
     /**

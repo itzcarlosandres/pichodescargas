@@ -9,7 +9,12 @@
         $appTitle = $application->resolveSeoTitle($platformLabel);
         $appDesc = $application->resolveSeoDescription($platformLabel);
         $shareImage = route('app.og-image', $application->slug);
-        $isMedia = in_array($application->category?->slug, ['peliculas-gratis', 'series-tv', 'peliculas', 'series']);
+        $isMedia = in_array($application->category?->slug, ['peliculas-gratis', 'series-tv', 'peliculas', 'series'])
+            || str_contains(strtolower((string) $application->platform), 'serie')
+            || str_contains(strtolower((string) $application->platform), 'pelicula')
+            || str_contains(strtolower((string) $application->category?->name), 'serie')
+            || str_contains(strtolower((string) $application->category?->name), 'pelicula')
+            || str_contains(strtolower((string) $application->category?->name), 'movie');
     @endphp
 
     @section('title', $appTitle)
