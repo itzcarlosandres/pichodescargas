@@ -15,6 +15,10 @@
             || str_contains(strtolower((string) $application->category?->name), 'serie')
             || str_contains(strtolower((string) $application->category?->name), 'pelicula')
             || str_contains(strtolower((string) $application->category?->name), 'movie');
+
+        $isSeries = in_array($application->category?->slug, ['series-tv', 'series'])
+            || str_contains(strtolower((string) $application->platform), 'serie')
+            || str_contains(strtolower((string) $application->category?->name), 'serie');
     @endphp
 
     @section('title', $appTitle)
@@ -266,18 +270,18 @@
 
                             <!-- sah-side: Download CTA Button (Exact User Reference Match) -->
                             <div class="sah-side flex flex-col items-center sm:items-end w-full sm:w-auto mt-2 sm:mt-0">
-                                @if(!empty($application->download_mirrors) && count($application->download_mirrors) > 1)
+                                @if($isSeries && !empty($application->download_mirrors) && count($application->download_mirrors) > 1)
                                     <!-- TV Series: Multiple Episodes Selector -->
                                     <a class="btn-download-banner !bg-gradient-to-r !from-purple-600 !to-indigo-600 !text-white !shadow-purple-500/25 cursor-pointer w-full sm:w-[260px]"
                                        href="#episodios"
-                                       title="Ver Capítulos de {{ $application->name }}">
+                                       title="View Episodes of {{ $application->name }}">
                                         <span class="btn-download-label !text-white flex items-center gap-1.5">
-                                            <span>📺 Ver {{ count($application->download_mirrors) }} Capítulos</span>
+                                            <span>📺 View {{ count($application->download_mirrors) }} Episodes</span>
                                         </span>
                                         <span class="btn-download-sub !text-white/80">
-                                            Torrents Disponibles &middot; Español
+                                            Torrents Available &middot; HD
                                         </span>
-                                        <span class="sr-only">Ver Capítulos de {{ $application->name }}</span>
+                                        <span class="sr-only">View Episodes of {{ $application->name }}</span>
                                     </a>
                                 @elseif($application->has_torrent && empty($application->download_url_external) && empty($application->download_url))
                                     <!-- Only Torrent Available -->
@@ -475,8 +479,8 @@
                             @endif
                         </div>
 
-                        <!-- TV Series Episodes Guide & Download Table -->
-                        @if(!empty($application->download_mirrors) && count($application->download_mirrors) > 0)
+                        <!-- TV Series Episodes Guide & Download Table (Exclusively for TV Series) -->
+                        @if($isSeries && !empty($application->download_mirrors) && count($application->download_mirrors) > 0)
                             <div id="episodios" class="my-8 rounded-2xl bg-[#14110E] border border-[#262019] p-5 sm:p-6 shadow-xl space-y-4">
                                 <!-- Header -->
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#221C16] pb-4">
